@@ -1,0 +1,27 @@
+[project]
+name = "mpbuild"
+version = "0.1.0"
+description = "Add your description here"
+authors = [
+    { name = "Matt Trentini", email = "matt.trentini@gmail.com" }
+]
+dependencies = [
+    "typer>=0.12.3",
+    "ruff>=0.5.5",
+]
+readme = "README.md"
+requires-python = ">= 3.8"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.rye]
+managed = true
+dev-dependencies = []
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mpbuild"]
