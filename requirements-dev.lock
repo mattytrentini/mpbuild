@@ -18,8 +18,7 @@ pygments==2.18.0
     # via rich
 rich==13.7.1
     # via typer
-ruff==0.5.5
-    # via mpbuild
+ruff==0.5.6
 shellingham==1.5.4
     # via typer
 typer==0.12.3
