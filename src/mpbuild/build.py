@@ -26,7 +26,7 @@ def build_board(port: str, board: str, variant: Optional[str] = None) -> None:
     build_container = _build_containers[port]
 
     # Need to replace pwd
-    build_cmd = f'docker run -ti --rm -v $(pwd):/w -w /w {build_container} bash -c "make -C mpy-cross && make -C ports/{port} submodules all BOARD={board}"'
+    build_cmd = f'docker run -ti --rm -v $(pwd):/$(pwd) -w /$(pwd) {build_container} bash -c "make -C mpy-cross && make -C ports/{port} submodules all BOARD={board}"'
     print(build_cmd)
     subprocess.run(build_cmd, shell=True)
 

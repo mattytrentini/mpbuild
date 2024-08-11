@@ -10,5 +10,7 @@ import os
 os.chdir("../mattyt-micropython")
 
 
-ports = ports_and_boards().keys()
+ports = list(ports_and_boards().keys())
+# Add 'special' ports - they don't have boards but do have variants
+ports.extend(["unix", "webassembly"])
 valid_ports = Enum("Ports", dict(([(p, p) for p in ports])))
