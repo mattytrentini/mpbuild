@@ -7,6 +7,7 @@ authors = [
 ]
 dependencies = [
     "typer>=0.12.3",
+    "rich>=13.7.1",
 ]
 readme = "README.md"
 requires-python = ">= 3.8"

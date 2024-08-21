@@ -1,6 +1,7 @@
-from glob import iglob
+from glob import iglob, glob
 from pathlib import Path
 from functools import cache
+import json
 
 
 def iports():
@@ -17,6 +18,23 @@ def port_and_board():
     for p in iglob("ports/**/boards/**/"):
         path = Path(p)
         yield path.parent.parent.name, path.name
+
+
+@cache
+def board_db():
+    db = dict()
+    for p in glob("ports/**/boards/**/board.json"):
+        path = Path(p)
+        port, board = path.parent.parent.parent.name, path.parent.name
+        with open(p) as f:
+            details = json.load(f)
+            variants = (
+                list(details["variants"].keys()) if "variants" in details.keys() else []
+            )
+            db.setdefault(port, {})
+            db[port].setdefault(board, {})
+            db[port][board] = (variants, details)
+    return db
 
 
 @cache

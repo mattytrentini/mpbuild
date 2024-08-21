@@ -32,4 +32,5 @@
 - Fix version - only use the version number from pyproject.toml
   - And query it with importlib.metadata.version
 - Check docker is in the path
-- IDF version should be passed in
+- IDF version should be configurable
+- Add unix and webassembly 'special' builds (no boards, build by port name)
