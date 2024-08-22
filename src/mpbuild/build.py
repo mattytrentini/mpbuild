@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 
 import subprocess
 
@@ -16,7 +16,7 @@ _build_containers = {
     "unix": "micropython/build-micropython-unix",  # Special, doesn't have boards
 }
 
-_default_idf_version = "v5.2.2"
+IDF_DEFAULT = "v5.2.2"
 
 # docker run -it --rm -e HOME=/tmp  -e BOARD=$BOARD -e ARGS="$ARGS" -e
 # DEPLOY_PORT=$DEPLOY_PORT -e UID=$(id -u) -v /sys/bus:/sys/bus -v /dev:/dev
@@ -26,14 +26,14 @@ _default_idf_version = "v5.2.2"
 
 
 def build_board(
-    port: str, board: str, variant: Optional[str] = None, idf: Optional[str] = None
+    port: str, board: str, variant: Optional[str] = None, extra_args: Optional[List[str]] = [], idf: Optional[str] = None
 ) -> None:
     if port not in _build_containers.keys():
         print(f"Sorry, builds are not supported for the {port} port at this time")
         # TODO(mst) Should raise an exception and abort with an error code
         return
 
-    if port != "esp32" and idf:
+    if port != "esp32" and idf != IDF_DEFAULT:
         print("An IDF version can only be specified for ESP32 builds")
         # TODO(mst) Should raise an exception and abort with an error code
         return
@@ -42,9 +42,14 @@ def build_board(
 
     if port == "esp32":
         if not idf:
-            idf = _default_idf_version
+            idf = IDF_DEFAULT
         build_container += f":{idf}"
 
+    if variant:
+        extra_args.insert(0, f"BOARD_VARIANT={variant}")
+    
+    args = " ".join(extra_args)
+    
     # TODO(mst) Will need to replace at least pwd for Windows builds
     build_cmd = (
         f"docker run -it --rm "
@@ -57,7 +62,7 @@ def build_board(
         f"{build_container} "
         f'bash -c "'
         f"git config --global --add safe.directory '*' 2> /dev/null;"
-        f'make -C mpy-cross && make -C ports/{port} submodules all BOARD={board}"'
+        f'make -C mpy-cross && make -C ports/{port} submodules all BOARD={board} {args}"'
     )
 
     print(build_cmd)
@@ -73,7 +78,7 @@ def clean_board(port: str, board: str, variant: Optional[str] = None) -> None:
     build_container = _build_containers[port]
 
     if port == "esp32":
-        idf = _default_idf_version
+        idf = IDF_DEFAULT
         build_container += f":{idf}"
 
     # Don't change the UID here, run clean at full permissions possible.

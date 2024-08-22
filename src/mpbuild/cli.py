@@ -1,11 +1,11 @@
-from typing import Optional
+from typing import Optional, List
 from typing_extensions import Annotated
 
 import typer
 
 from . import __app_name__, __version__, valid_ports
-from .find_boards import ports_and_boards
-from .build import build_board, clean_board
+from .find_boards import ports_and_boards, get_port
+from .build import build_board, clean_board, IDF_DEFAULT
 from .list_boards import list_boards
 from .check_images import check_images
 
@@ -17,7 +17,8 @@ app = typer.Typer()
 def build(
     board: str,
     variant: Annotated[Optional[str], typer.Argument()] = None,
-    idf: Annotated[Optional[str], typer.Argument()] = None,
+    idf: Annotated[Optional[str], typer.Option(help="esp32 port only: select IDF version to build with")] = IDF_DEFAULT,
+    extra_args: Annotated[Optional[List[str]], typer.Argument(help="additional arguments to pass to make")] = None,
 ) -> None:
     """
     Build a MicroPython board.
@@ -26,19 +27,9 @@ def build(
     print(f"Build {board}{v}!")
 
     # Find the port for the supplied board
-    port = None
-    p_and_b = ports_and_boards()
-    for p in p_and_b.keys():
-        if board in p_and_b[p]:
-            port = p
-            break
-    if port:
-        print(f"{board} is in {p}")
-    else:
-        print(f"{board} is an invalid board")
-        raise typer.Exit(code=1)
+    port = get_port(board)
 
-    build_board(port, board, idf)
+    build_board(port, board, variant, extra_args or [], idf)
 
 
 @app.command()
@@ -52,17 +43,7 @@ def clean(
     print(f"Clean {board=}{v}!")
 
     # Find the port for the supplied board
-    port = None
-    p_and_b = ports_and_boards()
-    for p in p_and_b.keys():
-        if board in p_and_b[p]:
-            port = p
-            break
-    if port:
-        print(f"{board} is in {p}")
-    else:
-        print(f"{board} is an invalid board")
-        raise typer.Exit(code=1)
+    port = get_port(board)
 
     clean_board(port, board)
 
