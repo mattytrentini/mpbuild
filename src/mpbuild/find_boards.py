@@ -2,6 +2,7 @@ from glob import iglob, glob
 from pathlib import Path
 from functools import cache
 import json
+import typer
 
 
 def iports():
@@ -43,3 +44,14 @@ def ports_and_boards():
     for p, b in port_and_board():
         p_and_b.setdefault(p, []).append(b)
     return p_and_b
+
+
+def get_port(board):
+    p_and_b = ports_and_boards()
+    for p in p_and_b.keys():
+        if board in p_and_b[p]:
+            print(f'"{board}" is in {p}')
+            return p
+
+    print(f'"{board}" is an invalid board')
+    raise typer.Exit(code=1)
