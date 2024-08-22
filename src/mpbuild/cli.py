@@ -4,7 +4,7 @@ from typing_extensions import Annotated
 import typer
 
 from . import __app_name__, __version__, valid_ports
-from .find_boards import ports_and_boards, get_port
+from .find_boards import get_port
 from .build import build_board, clean_board, IDF_DEFAULT
 from .list_boards import list_boards
 from .check_images import check_images
@@ -17,8 +17,13 @@ app = typer.Typer()
 def build(
     board: str,
     variant: Annotated[Optional[str], typer.Argument()] = None,
-    idf: Annotated[Optional[str], typer.Option(help="esp32 port only: select IDF version to build with")] = IDF_DEFAULT,
-    extra_args: Annotated[Optional[List[str]], typer.Argument(help="additional arguments to pass to make")] = None,
+    idf: Annotated[
+        Optional[str],
+        typer.Option(help="esp32 port only: select IDF version to build with"),
+    ] = IDF_DEFAULT,
+    extra_args: Annotated[
+        Optional[List[str]], typer.Argument(help="additional arguments to pass to make")
+    ] = None,
 ) -> None:
     """
     Build a MicroPython board.

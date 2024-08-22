@@ -26,7 +26,11 @@ IDF_DEFAULT = "v5.2.2"
 
 
 def build_board(
-    port: str, board: str, variant: Optional[str] = None, extra_args: Optional[List[str]] = [], idf: Optional[str] = None
+    port: str,
+    board: str,
+    variant: Optional[str] = None,
+    extra_args: Optional[List[str]] = [],
+    idf: Optional[str] = None,
 ) -> None:
     if port not in _build_containers.keys():
         print(f"Sorry, builds are not supported for the {port} port at this time")
@@ -47,10 +51,11 @@ def build_board(
 
     if variant:
         extra_args.insert(0, f"BOARD_VARIANT={variant}")
-    
+
     args = " ".join(extra_args)
-    
+
     # TODO(mst) Will need to replace at least pwd for Windows builds
+    # fmt: off
     build_cmd = (
         f"docker run -it --rm "
         f"-v /sys/bus:/sys/bus "            # provides access to USB for deploy
@@ -64,6 +69,7 @@ def build_board(
         f"git config --global --add safe.directory '*' 2> /dev/null;"
         f'make -C mpy-cross && make -C ports/{port} submodules all BOARD={board} {args}"'
     )
+    # fmt: on
 
     print(build_cmd)
     subprocess.run(build_cmd, shell=True)
@@ -83,9 +89,9 @@ def clean_board(port: str, board: str, variant: Optional[str] = None) -> None:
 
     # Don't change the UID here, run clean at full permissions possible.
     build_cmd = (
-        f'docker run -ti --rm '
-        f'-v $(pwd):$(pwd) -w $(pwd) '
-        f'{build_container} '
+        f"docker run -ti --rm "
+        f"-v $(pwd):$(pwd) -w $(pwd) "
+        f"{build_container} "
         f'bash -c "make -C mpy-cross clean && make -C ports/{port} clean BOARD={board}"'
     )
     print(build_cmd)
