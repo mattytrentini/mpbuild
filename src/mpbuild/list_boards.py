@@ -10,7 +10,7 @@ def list_boards(port: str = None, links: bool = False) -> None:
     for p in db.keys():
         if not port or (port and port.name == p):
             treep = tree.add(f"{p}   [bright_black]{len(db[p])}[/]")
-            for b in db[p]:
+            for b in sorted(db[p]):
                 variants = ", ".join(db[p][b][0])
                 variants = f" [bright_black]{variants}[/]" if variants else ""
                 treep.add(
