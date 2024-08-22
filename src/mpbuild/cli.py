@@ -28,7 +28,7 @@ def build(
     # Find the port for the supplied board
     port = get_port(board)
 
-    build_board(port, board, idf)
+    build_board(port, board, variant, idf)
 
 
 @app.command()

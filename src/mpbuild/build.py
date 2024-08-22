@@ -45,6 +45,8 @@ def build_board(
             idf = _default_idf_version
         build_container += f":{idf}"
 
+    args = f"BOARD_VARIANT={variant}" if variant else ""
+    
     # TODO(mst) Will need to replace at least pwd for Windows builds
     build_cmd = (
         f"docker run -it --rm "
@@ -57,7 +59,7 @@ def build_board(
         f"{build_container} "
         f'bash -c "'
         f"git config --global --add safe.directory '*' 2> /dev/null;"
-        f'make -C mpy-cross && make -C ports/{port} submodules all BOARD={board}"'
+        f'make -C mpy-cross && make -C ports/{port} submodules all BOARD={board} {args}"'
     )
 
     print(build_cmd)
