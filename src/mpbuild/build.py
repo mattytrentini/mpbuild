@@ -47,17 +47,16 @@ def build_board(
 
     # TODO(mst) Will need to replace at least pwd for Windows builds
     build_cmd = (
-        f"docker run -it --rm"
-        f"-e HOME=/tmp "
-        f"-e UID=$(id -u) "
-        f"-v /sys/bus:/sys/bus "
-        f"-v /dev:/dev "
-        f"--net=host --privileged "
-        f"-v $(pwd):/$(pwd) -w /$(pwd) "
-        f"--user $(id -u):$(id -u)  "
+        f"docker run -it --rm "
+        f"-v /sys/bus:/sys/bus "            # provides access to USB for deploy
+        f"-v /dev:/dev "                    # provides access to USB for deploy
+        f"--net=host --privileged "         # provides access to USB for deploy
+        f"-v $(pwd):/$(pwd) -w /$(pwd) "    # mount micropython dir with same path so elf/map paths match host
+        f"--user $(id -u):$(id -u)  "       # match running user id so generated files aren't owned by root
+        f"-e HOME=/tmp "                    # when changing user id to one not present in container this ensures home is writable
         f"{build_container} "
         f'bash -c "'
-        f"git config --global --add safe.directory '*';"
+        f"git config --global --add safe.directory '*' 2> /dev/null;"
         f'make -C mpy-cross && make -C ports/{port} submodules all BOARD={board}"'
     )
 
@@ -77,7 +76,12 @@ def clean_board(port: str, board: str, variant: Optional[str] = None) -> None:
         idf = _default_idf_version
         build_container += f":{idf}"
 
-    # Need to replace pwd
-    build_cmd = f'docker run -ti --rm -v $(pwd):/w -w /w {build_container} bash -c "make -C mpy-cross clean && make -C ports/{port} clean BOARD={board}"'
+    # Don't change the UID here, run clean at full permissions possible.
+    build_cmd = (
+        f'docker run -ti --rm '
+        f'-v $(pwd):$(pwd) -w $(pwd) '
+        f'{build_container} '
+        f'bash -c "make -C mpy-cross clean && make -C ports/{port} clean BOARD={board}"'
+    )
     print(build_cmd)
     subprocess.run(build_cmd, shell=True)
