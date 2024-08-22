@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 from typing_extensions import Annotated
 
 import typer
@@ -18,6 +18,7 @@ def build(
     board: str,
     variant: Annotated[Optional[str], typer.Argument()] = None,
     idf: Annotated[Optional[str], typer.Option(help="esp32 port only: select IDF version to build with")] = IDF_DEFAULT,
+    extra_args: Annotated[Optional[List[str]], typer.Argument(help="additional arguments to pass to make")] = None,
 ) -> None:
     """
     Build a MicroPython board.
@@ -28,7 +29,7 @@ def build(
     # Find the port for the supplied board
     port = get_port(board)
 
-    build_board(port, board, variant, idf)
+    build_board(port, board, variant, extra_args or [], idf)
 
 
 @app.command()

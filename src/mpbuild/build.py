@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 
 import subprocess
 
@@ -26,7 +26,7 @@ IDF_DEFAULT = "v5.2.2"
 
 
 def build_board(
-    port: str, board: str, variant: Optional[str] = None, idf: Optional[str] = None
+    port: str, board: str, variant: Optional[str] = None, extra_args: Optional[List[str]] = [], idf: Optional[str] = None
 ) -> None:
     if port not in _build_containers.keys():
         print(f"Sorry, builds are not supported for the {port} port at this time")
@@ -45,7 +45,10 @@ def build_board(
             idf = IDF_DEFAULT
         build_container += f":{idf}"
 
-    args = f"BOARD_VARIANT={variant}" if variant else ""
+    if variant:
+        extra_args.insert(0, f"BOARD_VARIANT={variant}")
+    
+    args = " ".join(extra_args)
     
     # TODO(mst) Will need to replace at least pwd for Windows builds
     build_cmd = (
