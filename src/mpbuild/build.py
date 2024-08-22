@@ -16,7 +16,7 @@ _build_containers = {
     "unix": "micropython/build-micropython-unix",  # Special, doesn't have boards
 }
 
-_default_idf_version = "v5.2.2"
+IDF_DEFAULT = "v5.2.2"
 
 # docker run -it --rm -e HOME=/tmp  -e BOARD=$BOARD -e ARGS="$ARGS" -e
 # DEPLOY_PORT=$DEPLOY_PORT -e UID=$(id -u) -v /sys/bus:/sys/bus -v /dev:/dev
@@ -33,7 +33,7 @@ def build_board(
         # TODO(mst) Should raise an exception and abort with an error code
         return
 
-    if port != "esp32" and idf:
+    if port != "esp32" and idf != IDF_DEFAULT:
         print("An IDF version can only be specified for ESP32 builds")
         # TODO(mst) Should raise an exception and abort with an error code
         return
@@ -42,7 +42,7 @@ def build_board(
 
     if port == "esp32":
         if not idf:
-            idf = _default_idf_version
+            idf = IDF_DEFAULT
         build_container += f":{idf}"
 
     args = f"BOARD_VARIANT={variant}" if variant else ""
@@ -75,7 +75,7 @@ def clean_board(port: str, board: str, variant: Optional[str] = None) -> None:
     build_container = _build_containers[port]
 
     if port == "esp32":
-        idf = _default_idf_version
+        idf = IDF_DEFAULT
         build_container += f":{idf}"
 
     # Don't change the UID here, run clean at full permissions possible.
