@@ -2,27 +2,19 @@ from typing import Optional, List
 
 import subprocess
 
-# ['esp8266', 'esp32', 'samd', 'nrf', 'renesas-ra', 'mimxrt', 'stm32', 'cc3200', 'rp2']
-
-_arm_build_container = "micropython/build-micropython-arm"
-_build_containers = {
-    "stm32": _arm_build_container,
-    "rp2": _arm_build_container,
-    "nrf": _arm_build_container,
-    "mimxrt": _arm_build_container,
-    "renesas-ra": _arm_build_container,
-    "samd": _arm_build_container,
+ARM_BUILD_CONTAINER = "micropython/build-micropython-arm"
+BUILD_CONTAINERS = {
+    "stm32": ARM_BUILD_CONTAINER,
+    "rp2": ARM_BUILD_CONTAINER,
+    "nrf": ARM_BUILD_CONTAINER,
+    "mimxrt": ARM_BUILD_CONTAINER,
+    "renesas-ra": ARM_BUILD_CONTAINER,
+    "samd": ARM_BUILD_CONTAINER,
     "esp32": "espressif/idf",
     "unix": "micropython/build-micropython-unix",  # Special, doesn't have boards
 }
 
 IDF_DEFAULT = "v5.2.2"
-
-# docker run -it --rm -e HOME=/tmp  -e BOARD=$BOARD -e ARGS="$ARGS" -e
-# DEPLOY_PORT=$DEPLOY_PORT -e UID=$(id -u) -v /sys/bus:/sys/bus -v /dev:/dev
-# --net=host --privileged -v "$CD":"$CD" -w "$CD" --user 1000:1000
-# espressif/idf:$IDF_VER bash -c "git config --global --add safe.directory
-# '*';make -C ports/esp32 BOARD=ESP32_GENERIC_C3"
 
 
 def build_board(
@@ -30,9 +22,10 @@ def build_board(
     board: str,
     variant: Optional[str] = None,
     extra_args: Optional[List[str]] = [],
+    build_container_override: Optional[str] = None,
     idf: Optional[str] = None,
 ) -> None:
-    if port not in _build_containers.keys():
+    if port not in BUILD_CONTAINERS.keys():
         print(f"Sorry, builds are not supported for the {port} port at this time")
         # TODO(mst) Should raise an exception and abort with an error code
         return
@@ -42,15 +35,16 @@ def build_board(
         # TODO(mst) Should raise an exception and abort with an error code
         return
 
-    build_container = _build_containers[port]
+    build_container = (
+        build_container_override if build_container_override else BUILD_CONTAINERS[port]
+    )
 
-    if port == "esp32":
+    if port == "esp32" and not build_container_override:
         if not idf:
             idf = IDF_DEFAULT
         build_container += f":{idf}"
 
-    if variant:
-        extra_args.insert(0, f"BOARD_VARIANT={variant}")
+    variant = f"BOARD_VARIANT={variant}" if variant else ""
 
     args = " ".join(extra_args)
 
@@ -67,7 +61,7 @@ def build_board(
         f"{build_container} "
         f'bash -c "'
         f"git config --global --add safe.directory '*' 2> /dev/null;"
-        f'make -C mpy-cross && make -C ports/{port} submodules all BOARD={board} {args}"'
+        f'make -C mpy-cross && make -C ports/{port} submodules all BOARD={board} {variant} {args}"'
     )
     # fmt: on
 
@@ -76,12 +70,12 @@ def build_board(
 
 
 def clean_board(port: str, board: str, variant: Optional[str] = None) -> None:
-    if port not in _build_containers.keys():
+    if port not in BUILD_CONTAINERS.keys():
         print(f"Sorry, builds are not supported for the {port} port at this time")
         # TODO(mst) Should raise an exception and abort with an error code
         return
 
-    build_container = _build_containers[port]
+    build_container = BUILD_CONTAINERS[port]
 
     if port == "esp32":
         idf = IDF_DEFAULT
