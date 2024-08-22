@@ -7,7 +7,10 @@ from .find_boards import ports_and_boards, board_db
 # For testing only!
 import os
 
-os.chdir("../mattyt-micropython")
+try:
+    os.stat("./ports")
+except OSError:
+    raise SystemExit("Please run from root of micropython source tree")
 
 
 ports = list(ports_and_boards().keys())
