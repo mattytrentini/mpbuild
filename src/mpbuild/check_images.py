@@ -34,21 +34,20 @@ def check_images(verbose: bool = False) -> None:
             for _board in db[_port]:
                 image_list = db[_port][_board][1]["images"]
                 if len(image_list) == 0:
-                    # print(f"Error, no images for {_port}/{_board}")
+                    # No images specified in build.json (should be at least one)
                     no_images.append((_port, _board))
                 for image in image_list:
+                    # Check each image listed in board.json
                     image_url = f"{base_url}/{_board}/{image}"
                     req = Request(image_url, method="HEAD")
                     try:
                         f = urlopen(req)
                     except HTTPError:
-                        # print(f"Error, image not found: [link={image_url}]{_port}/{_board}[/link]")
                         image_not_found.append((_port, _board, image_url))
                     if f.status == 200:
-                        # Check size < 500KB
+                        # Check size < ~500KB
                         image_size = int(f.headers["Content-Length"])
                         if image_size > 500_000:
-                            # print(f"Error, image too large ({image_size} bytes): {image_url}")
                             image_too_large.append(
                                 (_port, _board, image_url, image_size)
                             )

@@ -24,6 +24,10 @@ def build(
     extra_args: Annotated[
         Optional[List[str]], typer.Argument(help="additional arguments to pass to make")
     ] = None,
+    build_container: Annotated[
+        Optional[str],
+        typer.Option(help="Override the default build container"),
+    ] = None,
 ) -> None:
     """
     Build a MicroPython board.
@@ -34,7 +38,7 @@ def build(
     # Find the port for the supplied board
     port = get_port(board)
 
-    build_board(port, board, variant, extra_args or [], idf)
+    build_board(port, board, variant, extra_args or [], build_container, idf)
 
 
 @app.command()
