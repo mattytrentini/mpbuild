@@ -27,13 +27,11 @@ def build_board(
 ) -> None:
     if port not in BUILD_CONTAINERS.keys():
         print(f"Sorry, builds are not supported for the {port} port at this time")
-        # TODO(mst) Should raise an exception and abort with an error code
-        return
+        raise SystemExit()
 
     if port != "esp32" and idf != IDF_DEFAULT:
         print("An IDF version can only be specified for ESP32 builds")
-        # TODO(mst) Should raise an exception and abort with an error code
-        return
+        raise SystemExit()
 
     build_container = (
         build_container_override if build_container_override else BUILD_CONTAINERS[port]
@@ -72,8 +70,7 @@ def build_board(
 def clean_board(port: str, board: str, variant: Optional[str] = None) -> None:
     if port not in BUILD_CONTAINERS.keys():
         print(f"Sorry, builds are not supported for the {port} port at this time")
-        # TODO(mst) Should raise an exception and abort with an error code
-        return
+        raise SystemExit()
 
     build_container = BUILD_CONTAINERS[port]
 
