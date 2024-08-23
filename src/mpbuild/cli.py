@@ -3,7 +3,7 @@ from typing_extensions import Annotated
 
 import typer
 
-from . import __app_name__, __version__, valid_ports
+from . import __app_name__, __version__, OutputFormat
 from .find_boards import get_port
 from .build import build_board, clean_board, IDF_DEFAULT
 from .list_boards import list_boards
@@ -59,13 +59,18 @@ def clean(
 
 @app.command("list")
 def list_boards_and_variants(
-    port: Annotated[valid_ports, typer.Option(help="port name")] = None,
-    links: Annotated[bool, typer.Option(help="Provide links for boards")] = None,
+    port: Annotated[Optional[str], typer.Argument(help="port name")] = None,
+    fmt: Annotated[
+        OutputFormat,
+        typer.Option(
+            "--format", case_sensitive=False, help="Configure the output format"
+        ),
+    ] = OutputFormat.rich,
 ) -> None:
     """
     List available boards.
     """
-    list_boards(port, links)
+    list_boards(port, fmt)
 
 
 @app.command("check_images")

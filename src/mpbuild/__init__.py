@@ -19,3 +19,8 @@ ports.extend(["unix", "webassembly"])
 valid_ports = Enum("Ports", dict(([(p, p) for p in ports])))
 
 board_database = board_db()
+
+
+class OutputFormat(str, Enum):
+    rich = "rich"
+    text = "text"
