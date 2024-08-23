@@ -1,5 +1,6 @@
 from typing import Optional, List
 
+import multiprocessing
 import subprocess
 
 ARM_BUILD_CONTAINER = "micropython/build-micropython-arm"
@@ -15,6 +16,8 @@ BUILD_CONTAINERS = {
 }
 
 IDF_DEFAULT = "v5.2.2"
+
+nprocs = multiprocessing.cpu_count()
 
 
 def build_board(
@@ -59,7 +62,9 @@ def build_board(
         f"{build_container} "
         f'bash -c "'
         f"git config --global --add safe.directory '*' 2> /dev/null;"
-        f'make -C mpy-cross && make -C ports/{port} submodules all BOARD={board}{variant}{args}"'
+        f'make -C mpy-cross && '
+        f'make -C ports/{port} submodules BOARD={board}{variant} && '
+        f'make -j {nprocs} -C ports/{port} all BOARD={board}{variant}{args}"'
     )
     # fmt: on
 
