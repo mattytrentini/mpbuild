@@ -44,9 +44,9 @@ def build_board(
             idf = IDF_DEFAULT
         build_container += f":{idf}"
 
-    variant = f"BOARD_VARIANT={variant}" if variant else ""
+    variant = f" BOARD_VARIANT={variant}" if variant else ""
 
-    args = " ".join(extra_args)
+    args = " " + " ".join(extra_args)
 
     # TODO(mst) Will need to replace at least pwd for Windows builds
     # fmt: off
@@ -61,7 +61,7 @@ def build_board(
         f"{build_container} "
         f'bash -c "'
         f"git config --global --add safe.directory '*' 2> /dev/null;"
-        f'make -C mpy-cross && make -C ports/{port} submodules all BOARD={board} {variant} {args}"'
+        f'make -C mpy-cross && make -C ports/{port} submodules all BOARD={board}{variant}{args}"'
     )
     # fmt: on
 
