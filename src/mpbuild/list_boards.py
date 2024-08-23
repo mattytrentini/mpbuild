@@ -25,4 +25,12 @@ def list_boards(port: str = None, fmt: OutputFormat = OutputFormat.rich) -> None
     if fmt == OutputFormat.text:
         """ Output a space-separated list of boards (useful for bash
         completions). Don't display variants."""
-        print(" ".join([" ".join(sorted(db[p])) for p in db.keys()]))
+        print(
+            " ".join(
+                [
+                    " ".join(sorted(db[p]))
+                    for p in db.keys()
+                    if not port or (port and port == p)
+                ]
+            )
+        )
