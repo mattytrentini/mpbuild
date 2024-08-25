@@ -1,3 +1,4 @@
+import os
 from typing import Optional, List
 
 import multiprocessing
@@ -49,6 +50,10 @@ def build_board(
 
     args = " " + " ".join(extra_args)
 
+    pwd = os.getcwd()
+    uid, gid = os.getuid(), os.getgid()
+    home = os.environ["HOME"]
+
     # TODO(mst) Will need to replace at least pwd for Windows builds
     # fmt: off
     build_cmd = (
@@ -56,9 +61,9 @@ def build_board(
         f"-v /sys/bus:/sys/bus "            # provides access to USB for deploy
         f"-v /dev:/dev "                    # provides access to USB for deploy
         f"--net=host --privileged "         # provides access to USB for deploy
-        f"-v $(pwd):/$(pwd) -w /$(pwd) "    # mount micropython dir with same path so elf/map paths match host
-        f"--user $(id -u):$(id -u)  "       # match running user id so generated files aren't owned by root
-        f"-e HOME=/tmp "                    # when changing user id to one not present in container this ensures home is writable
+        f"-v {pwd}:{pwd} -w {pwd} "    # mount micropython dir with same path so elf/map paths match host
+        f"--user {uid}:{gid} "       # match running user id so generated files aren't owned by root
+        f"-v {home}:{home} -e HOME={home} "                    # when changing user id to one not present in container this ensures home is writable
         f"{build_container} "
         f'bash -c "'
         f"git config --global --add safe.directory '*' 2> /dev/null;"
