@@ -1,4 +1,5 @@
 import os
+import pathlib
 from typing import Optional, List
 
 import multiprocessing
@@ -16,10 +17,22 @@ BUILD_CONTAINERS = {
     "unix": "micropython/build-micropython-unix",  # Special, doesn't have boards
 }
 
+FIRMWARE_FILENAMES = {
+    "stm32": lambda board, variant: f"build-{board}-{variant}/firmware.dfu" if variant else f"build-{board}/firmware.dfu",
+    "rp2": lambda board, variant: f"build-{board}-{variant}/firmware.uf2" if variant else f"build-{board}/firmware.uf2",
+    "esp32": lambda board, variant: f"build-{board}-{variant}/micropython.bin" if variant else f"build-{board}/micropython.bin",
+}
+
 IDF_DEFAULT = "v5.2.2"
 
 nprocs = multiprocessing.cpu_count()
 
+def get_firmware_filename(port, board, variant)->pathlib.Path:
+    try:
+        filename = FIRMWARE_FILENAMES[port](board, variant)
+        return pathlib.Path.cwd() / "ports" / port / filename
+    except KeyError as e:
+        raise ValueError(f"Entry port='{port}' missing in 'FIRMWARE_FILENAMES'!") from e
 
 def build_board(
     port: str,
@@ -27,8 +40,8 @@ def build_board(
     variant: Optional[str] = None,
     extra_args: Optional[List[str]] = [],
     build_container_override: Optional[str] = None,
-    idf: Optional[str] = None,
-) -> None:
+    idf: str = IDF_DEFAULT,
+) -> pathlib.Path:
     if port not in BUILD_CONTAINERS.keys():
         print(f"Sorry, builds are not supported for the {port} port at this time")
         raise SystemExit()
@@ -46,7 +59,7 @@ def build_board(
             idf = IDF_DEFAULT
         build_container += f":{idf}"
 
-    variant = f" BOARD_VARIANT={variant}" if variant else ""
+    variant_text = f" BOARD_VARIANT={variant}" if variant else ""
 
     args = " " + " ".join(extra_args)
 
@@ -67,13 +80,14 @@ def build_board(
         f'bash -c "'
         f"git config --global --add safe.directory '*' 2> /dev/null;"
         f'make -C mpy-cross && '
-        f'make -C ports/{port} submodules BOARD={board}{variant} && '
-        f'make -j {nprocs} -C ports/{port} all BOARD={board}{variant}{args}"'
+        f'make -C ports/{port} submodules BOARD={board}{variant_text} && '
+        f'make -j {nprocs} -C ports/{port} all BOARD={board}{variant_text}{args}"'
     )
     # fmt: on
 
     print(build_cmd)
     subprocess.run(build_cmd, shell=True)
+    return get_firmware_filename(port, board, variant)
 
 
 def clean_board(port: str, board: str, variant: Optional[str] = None) -> None:
