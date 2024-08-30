@@ -2,7 +2,6 @@ from glob import iglob, glob
 from pathlib import Path
 from functools import cache
 import json
-import typer
 
 
 def iports():
@@ -50,8 +49,29 @@ def get_port(board):
     p_and_b = ports_and_boards()
     for p in p_and_b.keys():
         if board in p_and_b[p]:
-            print(f'"{board}" is in {p}')
             return p
 
-    print(f'"{board}" is an invalid board')
-    raise typer.Exit(code=1)
+    raise ValueError(f"'{board}' does not exist.")
+
+def ivariants(board):
+    """
+    Returns as list of tuple(port,variant)
+
+    This is useful for building all variants for a board:
+
+    for port, variant in find_boards.ivariants(board):
+        firmware_filename = build.build_board(port, board, variant)
+    """
+    def get_board_variants(board):
+        port = get_port(board)
+        board= board_db()[port][board]
+        (variants, _details) = board 
+        return port, variants
+
+    port, variants = get_board_variants(board)
+
+    yield port, None
+    if len(variants) > 0:
+        for variant in variants:
+            yield port, variant
+
