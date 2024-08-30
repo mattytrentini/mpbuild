@@ -4,7 +4,7 @@ from typing_extensions import Annotated
 import typer
 
 from . import __app_name__, __version__, OutputFormat
-from .find_boards import get_port
+from . import find_boards 
 from .build import build_board, clean_board, IDF_DEFAULT
 from .list_boards import list_boards
 from .check_images import check_images
@@ -12,6 +12,15 @@ from .check_images import check_images
 
 app = typer.Typer()
 
+def get_port(board):
+    try:
+        port = find_boards.get_port(board)
+    except ValueError as e:
+        print(f'"{board}" is an invalid board. Use: mpbuild list')
+        raise typer.Exit(code=1) from e
+
+    print(f'"{board}" is in {port}')
+    return port
 
 @app.command()
 def build(
