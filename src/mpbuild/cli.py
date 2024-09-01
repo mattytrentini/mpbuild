@@ -32,8 +32,6 @@ def build(
     """
     Build a MicroPython board.
     """
-    v = f" ({variant})" if variant else ""
-    print(f"Build {board}{v}!")
 
     # Find the port for the supplied board
     port = get_port(board)
@@ -73,7 +71,7 @@ def list_boards_and_variants(
     list_boards(port, fmt)
 
 
-@app.command("check_images")
+@app.command("check-images")
 def image_check(
     verbose: Annotated[bool, typer.Option(help="More verbose output")] = False,
 ) -> None:

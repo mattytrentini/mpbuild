@@ -38,19 +38,10 @@ def board_db():
     return db
 
 
-@cache
-def ports_and_boards():
-    p_and_b = dict()
-    for p, b in port_and_board():
-        p_and_b.setdefault(p, []).append(b)
-    return p_and_b
-
-
 def get_port(board):
-    p_and_b = ports_and_boards()
+    p_and_b = board_db()
     for p in p_and_b.keys():
         if board in p_and_b[p]:
-            print(f'"{board}" is in {p}')
             return p
 
     print(f'"{board}" is an invalid board')
