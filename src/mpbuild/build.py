@@ -4,6 +4,9 @@ from typing import Optional, List
 import multiprocessing
 import subprocess
 
+from rich import print
+from rich.panel import Panel
+
 ARM_BUILD_CONTAINER = "micropython/build-micropython-arm"
 BUILD_CONTAINERS = {
     "stm32": ARM_BUILD_CONTAINER,
@@ -48,7 +51,8 @@ def build_board(
 
     variant = f" BOARD_VARIANT={variant}" if variant else ""
 
-    args = " " + " ".join(extra_args)
+    args = " " if variant else ""
+    args += " ".join(extra_args)
 
     pwd = os.getcwd()
     uid, gid = os.getuid(), os.getgid()
@@ -72,7 +76,8 @@ def build_board(
     )
     # fmt: on
 
-    print(build_cmd)
+    print(Panel(build_cmd, title=f"{port}/{board}", title_align="left", padding=1))
+
     subprocess.run(build_cmd, shell=True)
 
 
