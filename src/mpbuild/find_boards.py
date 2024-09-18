@@ -28,11 +28,13 @@ def port_and_board():
 
 
 @cache
-def board_db():
+def board_db(single_port):
     db = dict()
     for p in glob("ports/**/boards/**/board.json"):
         path = Path(p)
         port, board = path.parent.parent.parent.name, path.parent.name
+        if single_port and port != single_port:
+            continue
         with open(p) as f:
             details = json.load(f)
             variants = (
