@@ -3,7 +3,7 @@ from typing_extensions import Annotated
 
 import typer
 
-from . import __app_name__, __version__, OutputFormat
+from . import __app_name__, __version__, OutputFormat, ports
 from .find_boards import get_port
 from .build import build_board, clean_board, IDF_DEFAULT
 from .list_boards import list_boards
@@ -15,8 +15,7 @@ app = typer.Typer()
 
 @app.command()
 def build(
-    board: str,
-    variant: Annotated[Optional[str], typer.Argument()] = None,
+    board: Annotated[str, typer.Argument(help="Board name, optionally with /variant")],
     idf: Annotated[
         Optional[str],
         typer.Option(help="esp32 port only: select IDF version to build with"),
@@ -32,11 +31,18 @@ def build(
     """
     Build a MicroPython board.
     """
+    port = None
+    specs = board.split("/")
+    if specs[0] in ports:
+        port = specs.pop(0)
+    board = specs.pop(0)
+    variant = specs[0] if specs else ""
+
     v = f" ({variant})" if variant else ""
     print(f"Build {board}{v}!")
 
     # Find the port for the supplied board
-    port = get_port(board)
+    port = port or get_port(board)
 
     build_board(port, board, variant, extra_args or [], build_container, idf)
 
