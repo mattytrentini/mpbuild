@@ -5,6 +5,9 @@ import json
 import typer
 
 
+SPECIAL_PORTS = ["unix", "webassembly", "windows"]
+
+
 def iports():
     for p in iglob("ports/**/"):
         yield Path(p).name
@@ -19,6 +22,9 @@ def port_and_board():
     for p in iglob("ports/**/boards/**/"):
         path = Path(p)
         yield path.parent.parent.name, path.name
+
+    for port in SPECIAL_PORTS:
+        yield port, port
 
 
 @cache
@@ -35,6 +41,19 @@ def board_db():
             db.setdefault(port, {})
             db[port].setdefault(board, {})
             db[port][board] = (variants, details)
+
+    # "Special" ports - don't have boards
+    for port in SPECIAL_PORTS:
+        path = Path("ports", port)
+        board = port
+        details = {
+            "url": f"https://github.com/micropython/micropython/blob/master/ports/{port}/README.md"
+        }
+        variants = [var.name for var in path.glob("variants/*") if var.is_dir()]
+        db.setdefault(port, {})
+        db[port].setdefault(board, {})
+        db[port][board] = (variants, details)
+
     return db
 
 

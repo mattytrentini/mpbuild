@@ -46,7 +46,8 @@ def build_board(
             idf = IDF_DEFAULT
         build_container += f":{idf}"
 
-    variant = f" BOARD_VARIANT={variant}" if variant else ""
+    variant_param = "VARIANT" if board == port else "BOARD_VARIANT"
+    variant = f" {variant_param}={variant}" if variant else ""
 
     args = " " + " ".join(extra_args)
 
