@@ -51,8 +51,21 @@ def build_board(
 
     args = " " + " ".join(extra_args)
 
+    make_mpy_cross_cmd = "make -C mpy-cross && "
+    update_submodules_cmd = (
+        f"make -C ports/{port} submodules BOARD={board}{variant} && "
+    )
+
     pwd = os.getcwd()
     uid, gid = os.getuid(), os.getgid()
+
+    if extra_args and extra_args[0].strip() == "clean":
+        # When cleaning we run with full privs
+        uid, gid = 0, 0
+        # Don't need to build mpy_cross or update submodules
+        make_mpy_cross_cmd = ""
+        update_submodules_cmd = ""
+
     home = os.environ["HOME"]
 
     # fmt: off
@@ -67,9 +80,9 @@ def build_board(
         f"{build_container} "
         f'bash -c "'
         f"git config --global --add safe.directory '*' 2> /dev/null;"
-        f'make -C mpy-cross && '
-        f'make -C ports/{port} submodules BOARD={board}{variant} && '
-        f'make -j {nprocs} -C ports/{port} all BOARD={board}{variant}{args}"'
+        f'{make_mpy_cross_cmd}'
+        f'{update_submodules_cmd}'
+        f'make -j {nprocs} -C ports/{port} BOARD={board}{variant}{args}"'
     )
     # fmt: on
 
@@ -77,23 +90,18 @@ def build_board(
     subprocess.run(build_cmd, shell=True)
 
 
-def clean_board(port: str, board: str, variant: Optional[str] = None) -> None:
-    if port not in BUILD_CONTAINERS.keys():
-        print(f"Sorry, builds are not supported for the {port} port at this time")
-        raise SystemExit()
-
-    build_container = BUILD_CONTAINERS[port]
-
-    if port == "esp32":
-        idf = IDF_DEFAULT
-        build_container += f":{idf}"
-
-    # Don't change the UID here, run clean at full permissions possible.
-    build_cmd = (
-        f"docker run -ti --rm "
-        f"-v $(pwd):$(pwd) -w $(pwd) "
-        f"{build_container} "
-        f'bash -c "make -C mpy-cross clean && make -C ports/{port} clean BOARD={board}"'
+def clean_board(
+    port: str,
+    board: str,
+    variant: Optional[str] = None,
+    idf: Optional[str] = IDF_DEFAULT,
+    mpy_dir: str = None,
+) -> None:
+    build_board(
+        port=port,
+        board=board,
+        variant=variant,
+        mpy_dir=mpy_dir,
+        idf=idf,
+        extra_args=["clean"],
     )
-    print(build_cmd)
-    subprocess.run(build_cmd, shell=True)
