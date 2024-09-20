@@ -8,7 +8,7 @@ from .cli import OutputFormat
 def list_boards(
     port: str = None, fmt: OutputFormat = OutputFormat.rich, mpy_dir: str = None
 ) -> None:
-    db = board_database(mpy_dir)
+    db = board_database(mpy_dir, port)
 
     if fmt == OutputFormat.rich:
         tree = Tree(":snake: [bright_white]MicroPython Boards[/]")

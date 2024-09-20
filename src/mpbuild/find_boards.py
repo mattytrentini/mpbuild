@@ -4,6 +4,7 @@ from pathlib import Path
 from functools import cache
 import json
 import typer
+from typing import Optional
 
 
 SPECIAL_PORTS = ["unix", "webassembly", "windows"]
@@ -40,7 +41,7 @@ def find_mpy_root(root: str = None):
 
 
 @cache
-def board_db(mpy_dir, single_port):
+def board_db(mpy_dir: str, single_port: Optional[str]):
     db = dict()
     for p in glob(f"{mpy_dir}/ports/**/boards/**/board.json"):
         path = Path(p)
