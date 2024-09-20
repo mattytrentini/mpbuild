@@ -4,6 +4,8 @@ from typing import Optional, List
 import multiprocessing
 import subprocess
 
+from .find_boards import find_mpy_root
+
 ARM_BUILD_CONTAINER = "micropython/build-micropython-arm"
 BUILD_CONTAINERS = {
     "stm32": ARM_BUILD_CONTAINER,
@@ -27,8 +29,11 @@ def build_board(
     variant: Optional[str] = None,
     extra_args: Optional[List[str]] = [],
     build_container_override: Optional[str] = None,
-    idf: Optional[str] = None,
+    idf: Optional[str] = IDF_DEFAULT,
+    mpy_dir: str = None,
 ) -> None:
+    mpy_dir, _ = find_mpy_root(mpy_dir)
+
     if port not in BUILD_CONTAINERS.keys():
         print(f"Sorry, builds are not supported for the {port} port at this time")
         raise SystemExit()
@@ -56,7 +61,6 @@ def build_board(
         f"make -C ports/{port} submodules BOARD={board}{variant} && "
     )
 
-    pwd = os.getcwd()
     uid, gid = os.getuid(), os.getgid()
 
     if extra_args and extra_args[0].strip() == "clean":
@@ -74,7 +78,7 @@ def build_board(
         f"-v /sys/bus:/sys/bus "              # provides access to USB for deploy
         f"-v /dev:/dev "                      # provides access to USB for deploy
         f"--net=host --privileged "           # provides access to USB for deploy
-        f"-v {pwd}:{pwd} -w {pwd} "           # mount micropython dir with same path so elf/map paths match host
+        f"-v {mpy_dir}:{mpy_dir} -w {mpy_dir} "           # mount micropython dir with same path so elf/map paths match host
         f"--user {uid}:{gid} "                # match running user id so generated files aren't owned by root
         f"-v {home}:{home} -e HOME={home} "   # when changing user id to one not present in container this ensures home is writable
         f"{build_container} "

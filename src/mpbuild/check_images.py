@@ -9,8 +9,8 @@ from rich.panel import Panel
 from rich.table import Table
 
 
-def check_images(verbose: bool = False) -> None:
-    db = board_database
+def check_images(verbose: bool = False, mpy_dir: str = None) -> None:
+    db = board_database(mpy_dir)
     # TODO(mst) A minor improvement: Should count the number of images in all
     # the boards for each port (this assumes one per board).
     num_boards = sum([len(db[p]) for p in db.keys()])

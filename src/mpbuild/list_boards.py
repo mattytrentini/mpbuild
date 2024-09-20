@@ -5,8 +5,10 @@ from rich import print
 from .cli import OutputFormat
 
 
-def list_boards(port: str = None, fmt: OutputFormat = OutputFormat.rich) -> None:
-    db = board_database
+def list_boards(
+    port: str = None, fmt: OutputFormat = OutputFormat.rich, mpy_dir: str = None
+) -> None:
+    db = board_database(mpy_dir)
 
     if fmt == OutputFormat.rich:
         tree = Tree(":snake: [bright_white]MicroPython Boards[/]")

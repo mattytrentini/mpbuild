@@ -1,3 +1,4 @@
+import os
 from glob import iglob, glob
 from pathlib import Path
 from functools import cache
@@ -7,19 +8,8 @@ import typer
 
 SPECIAL_PORTS = ["unix", "webassembly", "windows"]
 
-
-def iports():
-    for p in iglob("ports/**/"):
-        yield Path(p).name
-
-
-def iboards(port):
-    for p in iglob(f"ports/{port}/boards/**/"):
-        yield Path(p).name
-
-
-def port_and_board():
-    for p in iglob("ports/**/boards/**/"):
+def port_and_board(mpy_dir):
+    for p in iglob(f"{mpy_dir}/ports/**/boards/**/"):
         path = Path(p)
         yield path.parent.parent.name, path.name
 
@@ -28,9 +18,30 @@ def port_and_board():
 
 
 @cache
-def board_db(single_port):
+def find_mpy_root(root: str = None):
+    if root is None:
+        root = Path(os.environ.get("MICROPY_DIR", ".")).resolve()
+
+    port = None
+    while True:
+        # If run from a port folder, store that for use in filters
+        if root.parent.name == "ports":
+            port = root.name
+
+        if (root / "ports").exists() and (root / "mpy-cross").exists():
+            return str(root), port
+
+        if root.parent == root:
+            raise SystemExit(
+                "Please run from micropython source tree or specify with env: MICROPY_DIR"
+            )
+        root = root.parent
+
+
+@cache
+def board_db(mpy_dir, single_port):
     db = dict()
-    for p in glob("ports/**/boards/**/board.json"):
+    for p in glob(f"{mpy_dir}/ports/**/boards/**/board.json"):
         path = Path(p)
         port, board = path.parent.parent.parent.name, path.parent.name
         if single_port and port != single_port:
@@ -60,15 +71,15 @@ def board_db(single_port):
 
 
 @cache
-def ports_and_boards():
+def ports_and_boards(mpy_dir):
     p_and_b = dict()
-    for p, b in port_and_board():
+    for p, b in port_and_board(mpy_dir):
         p_and_b.setdefault(p, []).append(b)
     return p_and_b
 
 
-def get_port(board):
-    p_and_b = ports_and_boards()
+def get_port(mpy_dir, board):
+    p_and_b = ports_and_boards(mpy_dir)
     for p in p_and_b.keys():
         if board in p_and_b[p]:
             print(f'"{board}" is in {p}')
