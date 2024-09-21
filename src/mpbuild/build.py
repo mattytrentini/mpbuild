@@ -4,6 +4,8 @@ from typing import Optional, List
 import multiprocessing
 import subprocess
 
+from .find_boards import find_mpy_root
+
 ARM_BUILD_CONTAINER = "micropython/build-micropython-arm"
 BUILD_CONTAINERS = {
     "stm32": ARM_BUILD_CONTAINER,
@@ -27,8 +29,11 @@ def build_board(
     variant: Optional[str] = None,
     extra_args: Optional[List[str]] = [],
     build_container_override: Optional[str] = None,
-    idf: Optional[str] = None,
+    idf: Optional[str] = IDF_DEFAULT,
+    mpy_dir: str = None,
 ) -> None:
+    mpy_dir, _ = find_mpy_root(mpy_dir)
+
     if port not in BUILD_CONTAINERS.keys():
         print(f"Sorry, builds are not supported for the {port} port at this time")
         raise SystemExit()
@@ -51,25 +56,37 @@ def build_board(
 
     args = " " + " ".join(extra_args)
 
-    pwd = os.getcwd()
+    make_mpy_cross_cmd = "make -C mpy-cross && "
+    update_submodules_cmd = (
+        f"make -C ports/{port} submodules BOARD={board}{variant} && "
+    )
+
     uid, gid = os.getuid(), os.getgid()
+
+    if extra_args and extra_args[0].strip() == "clean":
+        # When cleaning we run with full privs
+        uid, gid = 0, 0
+        # Don't need to build mpy_cross or update submodules
+        make_mpy_cross_cmd = ""
+        update_submodules_cmd = ""
+
     home = os.environ["HOME"]
 
     # fmt: off
     build_cmd = (
         f"docker run -it --rm "
-        f"-v /sys/bus:/sys/bus "              # provides access to USB for deploy
-        f"-v /dev:/dev "                      # provides access to USB for deploy
-        f"--net=host --privileged "           # provides access to USB for deploy
-        f"-v {pwd}:{pwd} -w {pwd} "           # mount micropython dir with same path so elf/map paths match host
-        f"--user {uid}:{gid} "                # match running user id so generated files aren't owned by root
-        f"-v {home}:{home} -e HOME={home} "   # when changing user id to one not present in container this ensures home is writable
+        f"-v /sys/bus:/sys/bus "                # provides access to USB for deploy
+        f"-v /dev:/dev "                        # provides access to USB for deploy
+        f"--net=host --privileged "             # provides access to USB for deploy
+        f"-v {mpy_dir}:{mpy_dir} -w {mpy_dir} " # mount micropython dir with same path so elf/map paths match host
+        f"--user {uid}:{gid} "                  # match running user id so generated files aren't owned by root
+        f"-v {home}:{home} -e HOME={home} "     # when changing user id to one not present in container this ensures home is writable
         f"{build_container} "
         f'bash -c "'
         f"git config --global --add safe.directory '*' 2> /dev/null;"
-        f'make -C mpy-cross && '
-        f'make -C ports/{port} submodules BOARD={board}{variant} && '
-        f'make -j {nprocs} -C ports/{port} all BOARD={board}{variant}{args}"'
+        f'{make_mpy_cross_cmd}'
+        f'{update_submodules_cmd}'
+        f'make -j {nprocs} -C ports/{port} BOARD={board}{variant}{args}"'
     )
     # fmt: on
 
@@ -77,23 +94,18 @@ def build_board(
     subprocess.run(build_cmd, shell=True)
 
 
-def clean_board(port: str, board: str, variant: Optional[str] = None) -> None:
-    if port not in BUILD_CONTAINERS.keys():
-        print(f"Sorry, builds are not supported for the {port} port at this time")
-        raise SystemExit()
-
-    build_container = BUILD_CONTAINERS[port]
-
-    if port == "esp32":
-        idf = IDF_DEFAULT
-        build_container += f":{idf}"
-
-    # Don't change the UID here, run clean at full permissions possible.
-    build_cmd = (
-        f"docker run -ti --rm "
-        f"-v $(pwd):$(pwd) -w $(pwd) "
-        f"{build_container} "
-        f'bash -c "make -C mpy-cross clean && make -C ports/{port} clean BOARD={board}"'
+def clean_board(
+    port: str,
+    board: str,
+    variant: Optional[str] = None,
+    idf: Optional[str] = IDF_DEFAULT,
+    mpy_dir: str = None,
+) -> None:
+    build_board(
+        port=port,
+        board=board,
+        variant=variant,
+        mpy_dir=mpy_dir,
+        idf=idf,
+        extra_args=["clean"],
     )
-    print(build_cmd)
-    subprocess.run(build_cmd, shell=True)
