@@ -5,7 +5,8 @@ from typing import Optional, List
 import multiprocessing
 import subprocess
 
-ARM_BUILD_CONTAINER = "micropython/build-micropython-arm"
+# ARM_BUILD_CONTAINER = "micropython/build-micropython-arm"
+ARM_BUILD_CONTAINER = "build-micropython-arm-rp2riscv"
 BUILD_CONTAINERS = {
     "stm32": ARM_BUILD_CONTAINER,
     "rp2": ARM_BUILD_CONTAINER,
@@ -18,21 +19,35 @@ BUILD_CONTAINERS = {
 }
 
 FIRMWARE_FILENAMES = {
-    "stm32": lambda board, variant: f"build-{board}-{variant}/firmware.dfu" if variant else f"build-{board}/firmware.dfu",
-    "rp2": lambda board, variant: f"build-{board}-{variant}/firmware.uf2" if variant else f"build-{board}/firmware.uf2",
-    "esp32": lambda board, variant: f"build-{board}-{variant}/micropython.bin" if variant else f"build-{board}/micropython.bin",
+    "stm32": lambda board, variant: (
+        f"build-{board}-{variant}/firmware.dfu"
+        if variant
+        else f"build-{board}/firmware.dfu"
+    ),
+    "rp2": lambda board, variant: (
+        f"build-{board}-{variant}/firmware.uf2"
+        if variant
+        else f"build-{board}/firmware.uf2"
+    ),
+    "esp32": lambda board, variant: (
+        f"build-{board}-{variant}/micropython.bin"
+        if variant
+        else f"build-{board}/micropython.bin"
+    ),
 }
 
 IDF_DEFAULT = "v5.2.2"
 
 nprocs = multiprocessing.cpu_count()
 
-def get_firmware_filename(port, board, variant)->pathlib.Path:
+
+def get_firmware_filename(port, board, variant) -> pathlib.Path:
     try:
         filename = FIRMWARE_FILENAMES[port](board, variant)
         return pathlib.Path.cwd() / "ports" / port / filename
     except KeyError as e:
         raise ValueError(f"Entry port='{port}' missing in 'FIRMWARE_FILENAMES'!") from e
+
 
 def build_board(
     port: str,
@@ -86,7 +101,17 @@ def build_board(
     # fmt: on
 
     print(build_cmd)
-    subprocess.run(build_cmd, shell=True)
+    proc = subprocess.run(
+        build_cmd,
+        shell=True,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if proc.returncode != 0:
+        print(f"Error calling: {build_cmd}")
+        print(f"stdout: {proc.stdout}")
+        print(f"stderr: {proc.stderr}")
     return get_firmware_filename(port, board, variant)
 
 

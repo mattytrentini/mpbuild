@@ -41,6 +41,12 @@ import dataclasses
 from mpbuild import build
 
 DEFAULT_VARIANT = ""
+VARIANT_DELIMITER = "_"
+"""
+Example:
+PYBV11 is a board in its default variant.
+PYBV11_THREAD is the treaded variant of above board.
+"""
 
 
 @dataclasses.dataclass(repr=True)
@@ -82,7 +88,7 @@ class Variant:
         """
         if self.name == DEFAULT_VARIANT:
             return self.board.name
-        return f"{self.board.name}_{self.name}"
+        return f"{self.board.name}{VARIANT_DELIMITER}{self.name}"
 
     @property
     def buildparams(self) -> Buildparams:
@@ -128,6 +134,13 @@ class Board:
     @property
     def variants_without_default(self) -> list[Variant]:
         return self.variants[1:]
+
+    def get_variant(self, name: str) -> Variant:
+        assert isinstance(name, str)
+        for v in self.variants:
+            if v.name == name:
+                return v
+        raise ValueError(f"Board {self.name}: Variant '{name}' not found!")
 
     @staticmethod
     def factory(filename_json: pathlib.Path) -> Board:
@@ -200,6 +213,11 @@ class Database:
     def ports_ordered(self) -> list[Port]:
         return [self.dict_ports[k] for k in sorted(self.dict_ports.keys())]
 
+    def get_variant(self, board_name: str, variant_name: str) -> Variant:
+        assert isinstance(board_name, str)
+        assert isinstance(variant_name, str)
+        return self.dict_boards[board_name].get_variant(variant_name)
+
 
 def demo():
     db = Database()
@@ -227,7 +245,7 @@ def demo():
     # ...
     # stm32 65
     #   ...
-    #   PYBD_SF6 
+    #   PYBD_SF6
     #   PYBLITEV10 DP, DP_THREAD, NETWORK, THREAD
     #   PYBV10 DP, DP_THREAD, NETWORK, THREAD
     #   PYBV11 DP, DP_THREAD, NETWORK, THREAD

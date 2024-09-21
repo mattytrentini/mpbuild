@@ -1,0 +1,45 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Current File",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "mpbuild list",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "mpbuild.__main__",
+            "args": [
+                "list",
+            ],
+            "cwd": "/home/maerki/work_octoprobe_testbed_tutorial/git_cache/micropython_tests_e8452d67a60e9613af4e0de0bafed1b8",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "hans_test",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/hans_test.py",
+            "args": [],
+            "cwd": "/home/maerki/work_octoprobe_testbed_tutorial/git_cache/micropython_firmware_a8dacbe8afd409416648f667b0aa01b5",
+            // "cwd": "/home/maerki/work_octoprobe_testbed_tutorial/git_cache/micropython_tests_e8452d67a60e9613af4e0de0bafed1b8",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "find_boards_hmaerki.py",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/mpbuild/find_boards_hmaerki.py",
+            "args": [],
+            "cwd": "/home/maerki/work_octoprobe_testbed_tutorial/git_cache/micropython_tests_e8452d67a60e9613af4e0de0bafed1b8",
+            "console": "integratedTerminal"
+        }
+    ]
+}
