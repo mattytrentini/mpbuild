@@ -8,6 +8,7 @@ import typer
 
 SPECIAL_PORTS = ["unix", "webassembly", "windows"]
 
+
 def port_and_board(mpy_dir):
     for p in iglob(f"{mpy_dir}/ports/**/boards/**/"):
         path = Path(p)
@@ -33,7 +34,7 @@ def find_mpy_root(root: str = None):
 
         if root.parent == root:
             raise SystemExit(
-                "Please run from micropython source tree or specify with env: MICROPY_DIR"
+                "Please run from MicroPython source tree or specify with env: MICROPY_DIR"
             )
         root = root.parent
 
