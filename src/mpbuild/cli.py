@@ -4,7 +4,6 @@ from typing_extensions import Annotated
 import typer
 
 from . import __app_name__, __version__, OutputFormat
-from .find_boards import get_port
 from .build import build_board, clean_board, IDF_DEFAULT
 from .list_boards import list_boards
 from .check_images import check_images
@@ -35,10 +34,7 @@ def build(
     v = f" ({variant})" if variant else ""
     print(f"Build {board}{v}!")
 
-    # Find the port for the supplied board
-    port = get_port(board)
-
-    build_board(port, board, variant, extra_args or [], build_container, idf)
+    build_board(board, variant, extra_args or [], build_container, idf)
 
 
 @app.command()
@@ -51,10 +47,7 @@ def clean(
     v = f" ({variant})" if variant else ""
     print(f"Clean {board=}{v}!")
 
-    # Find the port for the supplied board
-    port = get_port(board)
-
-    clean_board(port, board)
+    clean_board(board, variant)
 
 
 @app.command("list")

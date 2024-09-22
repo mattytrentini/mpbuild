@@ -4,6 +4,7 @@ from typing import Optional, List
 import multiprocessing
 import subprocess
 
+from . import board_database
 from .find_boards import find_mpy_root
 
 ARM_BUILD_CONTAINER = "micropython/build-micropython-arm"
@@ -24,7 +25,6 @@ nprocs = multiprocessing.cpu_count()
 
 
 def build_board(
-    port: str,
     board: str,
     variant: Optional[str] = None,
     extra_args: Optional[List[str]] = [],
@@ -33,6 +33,9 @@ def build_board(
     mpy_dir: str = None,
 ) -> None:
     mpy_dir, _ = find_mpy_root(mpy_dir)
+
+    db = board_database()
+    port = db.boards[board].port.name
 
     if port not in BUILD_CONTAINERS.keys():
         print(f"Sorry, builds are not supported for the {port} port at this time")
@@ -95,14 +98,12 @@ def build_board(
 
 
 def clean_board(
-    port: str,
     board: str,
     variant: Optional[str] = None,
     idf: Optional[str] = IDF_DEFAULT,
     mpy_dir: str = None,
 ) -> None:
     build_board(
-        port=port,
         board=board,
         variant=variant,
         mpy_dir=mpy_dir,
