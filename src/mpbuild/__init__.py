@@ -3,15 +3,15 @@ __version__ = "0.1.0"
 
 from enum import Enum
 from functools import cache
-from .find_boards import board_db, find_mpy_root
+from .find_boards import find_mpy_root
+from .board_database import Database
 
 
 @cache
-def board_database(mpy_dir: str = None):
+def board_database(mpy_dir: str = None) -> Database:
     mpy_dir, port = find_mpy_root(mpy_dir)
 
-    db = board_db(mpy_dir, port)
-    return db
+    return Database(mpy_dir)
 
 
 class OutputFormat(str, Enum):
