@@ -117,6 +117,9 @@ class Port:
     Example key: PYBV11
     """
 
+    def __lt__(self, other):
+        return self.name < other.name
+
 
 @dataclass
 class Database:

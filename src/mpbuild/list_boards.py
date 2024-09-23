@@ -13,7 +13,7 @@ def list_boards(
     if fmt == OutputFormat.rich:
         tree = Tree(":snake: [bright_white]MicroPython Boards[/]")
         tree.add
-        for p in db.ports.values():
+        for p in sorted(db.ports.values()):
             if not port or (port and port == p.name):
                 treep = tree.add(f"{p.name}   [bright_black]{len(p.boards)}[/]")
                 for b in sorted(p.boards.values()):
