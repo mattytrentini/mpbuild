@@ -4,6 +4,9 @@ from typing import Optional, List
 import multiprocessing
 import subprocess
 
+from rich import print
+from rich.panel import Panel
+
 from . import board_database
 from .find_boards import find_mpy_root
 
@@ -55,13 +58,13 @@ def build_board(
         build_container += f":{idf}"
 
     variant_param = "VARIANT" if board == port else "BOARD_VARIANT"
-    variant = f" {variant_param}={variant}" if variant else ""
+    variant_cmd = f" {variant_param}={variant}" if variant else ""
 
     args = " " + " ".join(extra_args)
 
     make_mpy_cross_cmd = "make -C mpy-cross && "
     update_submodules_cmd = (
-        f"make -C ports/{port} submodules BOARD={board}{variant} && "
+        f"make -C ports/{port} submodules BOARD={board}{variant_cmd} && "
     )
 
     uid, gid = os.getuid(), os.getgid()
@@ -89,11 +92,13 @@ def build_board(
         f"git config --global --add safe.directory '*' 2> /dev/null;"
         f'{make_mpy_cross_cmd}'
         f'{update_submodules_cmd}'
-        f'make -j {nprocs} -C ports/{port} BOARD={board}{variant}{args}"'
+        f'make -j {nprocs} -C ports/{port} BOARD={board}{variant_cmd}{args}"'
     )
     # fmt: on
 
-    print(build_cmd)
+    title = f"{port}/{board}" + f" ({variant})" if variant else ""
+    print(Panel(build_cmd, title=title, title_align="left", padding=1))
+
     subprocess.run(build_cmd, shell=True)
 
 
