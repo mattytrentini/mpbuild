@@ -125,6 +125,7 @@ class Database:
     boards: dict[str, Board] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
+        # Take care to avoid using Path.glob! Performance was 15x slower.
         for p in glob("ports/**/boards/**/board.json"):
             filename_json = Path(p)
             port_name = filename_json.parent.parent.parent.name
