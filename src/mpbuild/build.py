@@ -10,7 +10,6 @@ from rich.panel import Panel
 from rich.markdown import Markdown
 
 from . import board_database
-from .find_boards import find_mpy_root
 
 ARM_BUILD_CONTAINER = "micropython/build-micropython-arm"
 BUILD_CONTAINERS = {
@@ -37,9 +36,7 @@ def build_board(
     idf: Optional[str] = IDF_DEFAULT,
     mpy_dir: str = None,
 ) -> None:
-    mpy_dir, _ = find_mpy_root(mpy_dir)
-
-    db = board_database()
+    db = board_database(mpy_dir)
 
     if board not in db.boards.keys():
         print("Invalid board")

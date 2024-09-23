@@ -8,10 +8,11 @@ from .board_database import Database
 
 
 @cache
-def board_database(mpy_dir: str = None) -> Database:
-    mpy_dir, port = find_mpy_root(mpy_dir)
+def board_database(mpy_dir: str = None, port: str = None) -> Database:
+    mpy_dir, auto_port = find_mpy_root(mpy_dir)
+    port = port or auto_port
 
-    return Database(mpy_dir)
+    return Database(mpy_dir, port)
 
 
 class OutputFormat(str, Enum):
