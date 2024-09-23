@@ -28,8 +28,8 @@ ports/stm32/boards/PYBV11/board.json
     "vendor": "George Robotics"
 }
 
-This module imlements `class Database` which reads all 'board.json' files and
-allows to browse its data.
+This module implements `class Database` which reads all 'board.json' files and
+provides a way to browse it's data.
 """
 
 from __future__ import annotations
@@ -44,11 +44,11 @@ from glob import glob
 class Variant:
     name: str
     """
-    Example: DP_THREAD
+    Example: "DP_THREAD"
     """
     text: str
     """
-    Example: Double precision float + Threads
+    Example: "Double precision float + Threads"
     """
     board: Board
 
@@ -57,25 +57,25 @@ class Variant:
 class Board:
     name: str
     """
-    Example: PYBV11
+    Example: "PYBV11"
     """
     variants: list[Variant]
     """
-    Example key: DP_THREAD
-    Variants are sorted and may be an empty list if no variants are available.
+    Example key: "DP_THREAD"
+    Variants are sorted. May be an empty list if no variants are available.
     """
     url: str
     mcu: str
     """
-    Example: stm32f4
+    Example: "stm32f4"
     """
     product: str
     """
-    Example: Pyboard v1.1
+    Example: "Pyboard v1.1"
     """
     vendor: str
     """
-    Example: George Robotics
+    Example: "George Robotics"
     """
     images: list[str]
     """
@@ -110,11 +110,11 @@ class Board:
 class Port:
     name: str
     """
-    Example: str32
+    Example: "stm32"
     """
     boards: dict[str, Board] = field(default_factory=dict)
     """
-    Example key: PYBV11
+    Example key: "PYBV11"
     """
 
     def __lt__(self, other):
@@ -127,7 +127,7 @@ class Database:
     This database contains all information retrieved from all 'board.json' files.
     """
 
-    mpy_root_directory: str
+    mpy_root_directory: str  # TODO(mst) Currently unused.
 
     ports: dict[str, Port] = field(default_factory=dict)
     boards: dict[str, Board] = field(default_factory=dict)
@@ -175,51 +175,3 @@ class Database:
 
             self.ports[special_port_name] = port
             self.boards[board.name] = board
-
-
-def demo():
-    print("query start")
-    import timeit
-
-    timer = timeit.Timer(lambda: Database())
-    elapsed = timer.timeit(1)
-    print(f"Time taken: {elapsed:.6f} seconds")
-    db = Database()
-    print("query end")
-
-    # import timeit
-    # timer = timeit.Timer(lambda: Database())
-    # elapsed = timer.timeit(10)
-    # print(f'Time taken: {elapsed:.6f} seconds')
-
-    # Build all variants for board 'PYBV11'
-    # for variant in db.dict_boards["PYBV11"].variants:
-    #    firmware_filename = build.build_board(**variant.buildparams.as_named_parameters)
-    #    print(f"FIRMWARE for {variant.name_normalized}: {firmware_filename}")
-
-    # Output of above code:
-    # FIRMWARE for PYBV11:           ports/stm32/build-PYBV11/firmware.dfu
-    # FIRMWARE for PYBV11_DP:        ports/stm32/build-PYBV11-DP/firmware.dfu
-    # FIRMWARE for PYBV11_DP_THREAD: ports/stm32/build-PYBV11-DP_THREAD/firmware.dfu
-    # FIRMWARE for PYBV11_NETWORK:   ports/stm32/build-PYBV11-NETWORK/firmware.dfu
-    # FIRMWARE for PYBV11_THREAD:    ports/stm32/build-PYBV11-THREAD/firmware.dfu
-
-    # mpbuild --list
-    for port in db.ports.values():
-        print(f"{port.name} {len(port.boards)}")
-        for board in port.boards.values():
-            list_variants = [v.name for v in board.variants if board.variants]
-            print(f"  {board.name} {', '.join(list_variants)}")
-
-    # Output of above code:
-    # ...
-    # stm32 65
-    #   ...
-    #   PYBD_SF6
-    #   PYBLITEV10 DP, DP_THREAD, NETWORK, THREAD
-    #   PYBV10 DP, DP_THREAD, NETWORK, THREAD
-    #   PYBV11 DP, DP_THREAD, NETWORK, THREAD
-
-
-if __name__ == "__main__":
-    demo()
