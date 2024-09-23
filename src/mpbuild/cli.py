@@ -41,8 +41,7 @@ def clean(
     """
     Clean a MicroPython board.
     """
-    v = f" ({variant})" if variant else ""
-    print(f"Clean {board=}{v}!")
+    print("Clean")
 
     clean_board(board, variant)
 

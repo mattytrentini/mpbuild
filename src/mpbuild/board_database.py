@@ -144,6 +144,28 @@ class Database:
             port.boards[board.name] = board
             self.boards[board.name] = board
 
+        # Add 'special' ports, that don't have boards
+        # TODO(mst) Tidy up later (variant descriptions etc)
+        for special_port_name in ["unix", "webassembly", "windows"]:
+            path = Path("ports", special_port_name)
+            variant_names = [
+                var.name for var in path.glob("variants/*") if var.is_dir()
+            ]
+            board = Board(
+                special_port_name,
+                [],
+                f"https://github.com/micropython/micropython/blob/master/ports/{special_port_name}/README.md",
+                "",
+                "",
+                "",
+            )
+            board.variants = [Variant(v, "", board) for v in variant_names]
+            port = Port(special_port_name, {special_port_name: board})
+            board.port = port
+
+            self.ports[special_port_name] = port
+            self.boards[board.name] = board
+
 
 def demo():
     print("query start")

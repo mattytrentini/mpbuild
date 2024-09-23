@@ -38,7 +38,16 @@ def build_board(
     mpy_dir, _ = find_mpy_root(mpy_dir)
 
     db = board_database()
+
+    if board not in db.boards.keys():
+        print("Invalid port")
+        raise SystemExit()
+
     port = db.boards[board].port.name
+
+    if variant and variant not in [v.name for v in db.boards[board].variants]:
+        print("Invalid variant")
+        raise SystemExit()
 
     if port not in BUILD_CONTAINERS.keys():
         print(f"Sorry, builds are not supported for the {port} port at this time")
@@ -96,7 +105,7 @@ def build_board(
     )
     # fmt: on
 
-    title = f"{port}/{board}" + f" ({variant})" if variant else ""
+    title = f"{port}/{board}" + (f" ({variant})" if variant else "")
     print(Panel(build_cmd, title=title, title_align="left", padding=1))
 
     subprocess.run(build_cmd, shell=True)
