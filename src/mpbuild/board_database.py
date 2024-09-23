@@ -77,6 +77,10 @@ class Board:
     """
     Example: George Robotics
     """
+    images: list[str]
+    """
+    Example: ["PYBv1_1.jpg", "PYBv1_1-C.jpg", "PYBv1_1-E.jpg"]
+    """
     port: Port = None
 
     def __lt__(self, other):
@@ -98,6 +102,7 @@ class Board:
             mcu=board_json["mcu"],
             product=board_json["product"],
             vendor=board_json["vendor"],
+            images=board_json["images"],
         )
 
 
@@ -159,6 +164,7 @@ class Database:
                 "",
                 "",
                 "",
+                [],
             )
             board.variants = [Variant(v, "", board) for v in variant_names]
             port = Port(special_port_name, {special_port_name: board})
