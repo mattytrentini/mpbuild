@@ -1,11 +1,13 @@
 import os
 from typing import Optional, List
 
+from pathlib import Path
 import multiprocessing
 import subprocess
 
 from rich import print
 from rich.panel import Panel
+from rich.markdown import Markdown
 
 from . import board_database
 from .find_boards import find_mpy_root
@@ -40,12 +42,13 @@ def build_board(
     db = board_database()
 
     if board not in db.boards.keys():
-        print("Invalid port")
+        print("Invalid board")
         raise SystemExit()
 
-    port = db.boards[board].port.name
+    _board = db.boards[board]
+    port = _board.port.name
 
-    if variant and variant not in [v.name for v in db.boards[board].variants]:
+    if variant and variant not in [v.name for v in _board.variants]:
         print("Invalid variant")
         raise SystemExit()
 
@@ -105,10 +108,35 @@ def build_board(
     )
     # fmt: on
 
-    title = f"{port}/{board}" + (f" ({variant})" if variant else "")
+    title = "Build" if "clean" not in extra_args else "Clean"
+    title += f" {port}/{board}" + (f" ({variant})" if variant else "")
     print(Panel(build_cmd, title=title, title_align="left", padding=1))
 
     subprocess.run(build_cmd, shell=True)
+
+    # Display deployment markdown
+    # Note: Only displaying the first deploy file.
+    # Q: Are there cases where there's >1? A: Currently, no.
+    #    >>> sum([len(b.deploy) for b in db.boards.values()])
+    #    166
+    #    >>> len(db.boards())
+    #    169  # 3x boards are the 'special' boards without deployment instructions.
+    if _board.deploy and "clean" not in extra_args:
+        deploy_filename = Path(
+            "/".join(
+                [
+                    mpy_dir,
+                    "ports",
+                    _board.port.name,
+                    "boards",
+                    _board.name,
+                    _board.deploy[0],
+                ]
+            )
+        )
+        if deploy_filename.is_file():
+            with open(deploy_filename) as deployfile:
+                print(Panel(Markdown(deployfile.read())))
 
 
 def clean_board(

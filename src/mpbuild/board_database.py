@@ -61,10 +61,14 @@ class Board:
     """
     variants: list[Variant]
     """
-    Example key: "DP_THREAD"
+    List of variants available for this board.
     Variants are sorted. May be an empty list if no variants are available.
+    Example key: "DP_THREAD"
     """
     url: str
+    """
+    Primary URL to link to this board.
+    """
     mcu: str
     """
     Example: "stm32f4"
@@ -79,7 +83,13 @@ class Board:
     """
     images: list[str]
     """
+    Images of this board, stored in the micropython-media repository.
     Example: ["PYBv1_1.jpg", "PYBv1_1-C.jpg", "PYBv1_1-E.jpg"]
+    """
+    deploy: list[str]
+    """
+    Files that explain how to deploy for this board:
+    Example: ["../PYBV10/deploy.md"]
     """
     port: Port = None
 
@@ -103,6 +113,7 @@ class Board:
             product=board_json["product"],
             vendor=board_json["vendor"],
             images=board_json["images"],
+            deploy=board_json["deploy"],
         )
 
 
@@ -167,6 +178,7 @@ class Database:
                 "",
                 "",
                 "",
+                [],
                 [],
             )
             board.variants = [Variant(v, "", board) for v in variant_names]

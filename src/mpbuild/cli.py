@@ -41,8 +41,6 @@ def clean(
     """
     Clean a MicroPython board.
     """
-    print("Clean")
-
     clean_board(board, variant)
 
 
