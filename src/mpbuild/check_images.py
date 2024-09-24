@@ -13,7 +13,7 @@ def check_images(verbose: bool = False, mpy_dir: str = None) -> None:
     db = board_database(mpy_dir)
     # TODO(mst) A minor improvement: Should count the number of images in all
     # the boards for each port (this assumes one per board).
-    num_boards = sum([len(db[p]) for p in db.keys()])
+    num_boards = len(db.boards)
 
     # no_images = [("stm32", "fooobar"), ("rp2", "PICO")] # []
     # image_not_found = [("stm32", "fooobar", "https://raw.githubusercontent.com/micropython/micropython-media/main/boards/VK_RA6M5/VK-RA6M5.jpg"),
@@ -30,28 +30,27 @@ def check_images(verbose: bool = False, mpy_dir: str = None) -> None:
     )
     with Progress(transient=True) as progress:
         task1 = progress.add_task("[cyan]Checking images...", total=num_boards)
-        for _port in db.keys():
-            for _board in db[_port]:
-                image_list = db[_port][_board][1]["images"]
-                if len(image_list) == 0:
-                    # No images specified in build.json (should be at least one)
-                    no_images.append((_port, _board))
-                for image in image_list:
-                    # Check each image listed in board.json
-                    image_url = f"{base_url}/{_board}/{image}"
-                    req = Request(image_url, method="HEAD")
-                    try:
-                        f = urlopen(req)
-                    except HTTPError:
-                        image_not_found.append((_port, _board, image_url))
-                    if f.status == 200:
-                        # Check size < ~500KB
-                        image_size = int(f.headers["Content-Length"])
-                        if image_size > 500_000:
-                            image_too_large.append(
-                                (_port, _board, image_url, image_size)
-                            )
-                progress.update(task1, advance=1)
+        for _board in db.boards.values():
+            image_list = _board.images
+            if len(image_list) == 0:
+                # No images specified in build.json (should be at least one)
+                no_images.append((_board.port.name, _board.name))
+            for image in image_list:
+                # Check each image listed in board.json
+                image_url = f"{base_url}/{_board.name}/{image}"
+                req = Request(image_url, method="HEAD")
+                try:
+                    f = urlopen(req)
+                except HTTPError:
+                    image_not_found.append((_board.port.name, _board.name, image_url))
+                if f.status == 200:
+                    # Check size < ~500KB
+                    image_size = int(f.headers["Content-Length"])
+                    if image_size > 500_000:
+                        image_too_large.append(
+                            (_board.port.name, _board.name, image_url, image_size)
+                        )
+            progress.update(task1, advance=1)
 
     # Display output
     grid = Table.grid(expand=True)

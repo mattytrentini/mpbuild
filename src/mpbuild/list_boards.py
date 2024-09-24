@@ -13,14 +13,14 @@ def list_boards(
     if fmt == OutputFormat.rich:
         tree = Tree(":snake: [bright_white]MicroPython Boards[/]")
         tree.add
-        for p in db.keys():
-            if not port or (port and port == p):
-                treep = tree.add(f"{p}   [bright_black]{len(db[p])}[/]")
-                for b in sorted(db[p]):
-                    variants = ", ".join(db[p][b][0])
+        for p in sorted(db.ports.values()):
+            if not port or (port and port == p.name):
+                treep = tree.add(f"{p.name}   [bright_black]{len(p.boards)}[/]")
+                for b in sorted(p.boards.values()):
+                    variants = ", ".join([v.name for v in b.variants])
                     variants = f" [bright_black]{variants}[/]" if variants else ""
                     treep.add(
-                        f"[bright_white][link={db[p][b][1]['url']}]{b}[/link][/] {variants}"
+                        f"[bright_white][link={b.url}]{b.name}[/link][/] {variants}"
                     )
         print(tree)
 
@@ -30,9 +30,9 @@ def list_boards(
         print(
             " ".join(
                 [
-                    " ".join(sorted(db[p]))
-                    for p in db.keys()
-                    if not port or (port and port == p)
+                    b.name
+                    for b in sorted(db.boards.values())
+                    if not port or (port and port == b.port.name)
                 ]
             )
         )

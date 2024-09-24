@@ -1,9 +1,15 @@
 import os
 from typing import Optional, List
 
+from pathlib import Path
 import multiprocessing
 import subprocess
 
+from rich import print
+from rich.panel import Panel
+from rich.markdown import Markdown
+
+from . import board_database
 from .find_boards import find_mpy_root
 
 ARM_BUILD_CONTAINER = "micropython/build-micropython-arm"
@@ -24,7 +30,6 @@ nprocs = multiprocessing.cpu_count()
 
 
 def build_board(
-    port: str,
     board: str,
     variant: Optional[str] = None,
     extra_args: Optional[List[str]] = [],
@@ -33,6 +38,19 @@ def build_board(
     mpy_dir: str = None,
 ) -> None:
     mpy_dir, _ = find_mpy_root(mpy_dir)
+
+    db = board_database()
+
+    if board not in db.boards.keys():
+        print("Invalid board")
+        raise SystemExit()
+
+    _board = db.boards[board]
+    port = _board.port.name
+
+    if variant and variant not in [v.name for v in _board.variants]:
+        print("Invalid variant")
+        raise SystemExit()
 
     if port not in BUILD_CONTAINERS.keys():
         print(f"Sorry, builds are not supported for the {port} port at this time")
@@ -52,13 +70,13 @@ def build_board(
         build_container += f":{idf}"
 
     variant_param = "VARIANT" if board == port else "BOARD_VARIANT"
-    variant = f" {variant_param}={variant}" if variant else ""
+    variant_cmd = f" {variant_param}={variant}" if variant else ""
 
     args = " " + " ".join(extra_args)
 
     make_mpy_cross_cmd = "make -C mpy-cross && "
     update_submodules_cmd = (
-        f"make -C ports/{port} submodules BOARD={board}{variant} && "
+        f"make -C ports/{port} submodules BOARD={board}{variant_cmd} && "
     )
 
     uid, gid = os.getuid(), os.getgid()
@@ -86,23 +104,48 @@ def build_board(
         f"git config --global --add safe.directory '*' 2> /dev/null;"
         f'{make_mpy_cross_cmd}'
         f'{update_submodules_cmd}'
-        f'make -j {nprocs} -C ports/{port} BOARD={board}{variant}{args}"'
+        f'make -j {nprocs} -C ports/{port} BOARD={board}{variant_cmd}{args}"'
     )
     # fmt: on
 
-    print(build_cmd)
+    title = "Build" if "clean" not in extra_args else "Clean"
+    title += f" {port}/{board}" + (f" ({variant})" if variant else "")
+    print(Panel(build_cmd, title=title, title_align="left", padding=1))
+
     subprocess.run(build_cmd, shell=True)
+
+    # Display deployment markdown
+    # Note: Only displaying the first deploy file.
+    # Q: Are there cases where there's >1? A: Currently, no.
+    #    >>> sum([len(b.deploy) for b in db.boards.values()])
+    #    166
+    #    >>> len(db.boards())
+    #    169  # 3x boards are the 'special' boards without deployment instructions.
+    if _board.deploy and "clean" not in extra_args:
+        deploy_filename = Path(
+            "/".join(
+                [
+                    mpy_dir,
+                    "ports",
+                    _board.port.name,
+                    "boards",
+                    _board.name,
+                    _board.deploy[0],
+                ]
+            )
+        )
+        if deploy_filename.is_file():
+            with open(deploy_filename) as deployfile:
+                print(Panel(Markdown(deployfile.read())))
 
 
 def clean_board(
-    port: str,
     board: str,
     variant: Optional[str] = None,
     idf: Optional[str] = IDF_DEFAULT,
     mpy_dir: str = None,
 ) -> None:
     build_board(
-        port=port,
         board=board,
         variant=variant,
         mpy_dir=mpy_dir,
