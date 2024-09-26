@@ -40,7 +40,7 @@ from dataclasses import dataclass, field
 from glob import glob
 
 
-@dataclass
+@dataclass(order=True)
 class Variant:
     name: str
     """
@@ -53,7 +53,7 @@ class Variant:
     board: Board
 
 
-@dataclass
+@dataclass(order=True)
 class Board:
     name: str
     """
@@ -91,23 +91,16 @@ class Board:
     Files that explain how to deploy for this board:
     Example: ["../PYBV10/deploy.md"]
     """
-    port: Port = None
-
-    def __lt__(self, other):
-        return self.name < other.name
+    port: Port = field(default=None, compare=False)
 
     @staticmethod
     def factory(filename_json: Path) -> Board:
         with filename_json.open() as f:
             board_json = json.load(f)
 
-        dict_variants = dict(sorted(board_json.get("variants", {}).items()))
-        variants: list[Variant] = [
-            Variant(k, v, None) for k, v in dict_variants.items()
-        ]
-        return Board(
+        board = Board(
             name=filename_json.parent.name,
-            variants=variants,
+            variants=[],
             url=board_json["url"],
             mcu=board_json["mcu"],
             product=board_json["product"],
@@ -115,9 +108,13 @@ class Board:
             images=board_json["images"],
             deploy=board_json["deploy"],
         )
+        board.variants.extend(
+            sorted([Variant(*v, board) for v in board_json.get("variants", {}).items()])
+        )
+        return board
 
 
-@dataclass
+@dataclass(order=True)
 class Port:
     name: str
     """
@@ -128,9 +125,6 @@ class Port:
     Example key: "PYBV11"
     """
 
-    def __lt__(self, other):
-        return self.name < other.name
-
 
 @dataclass
 class Database:
@@ -138,16 +132,20 @@ class Database:
     This database contains all information retrieved from all 'board.json' files.
     """
 
-    mpy_root_directory: str  # TODO(mst) Currently unused.
+    mpy_root_directory: str = field(repr=False)
+    port_filter: bool = field(default=False, repr=False)
 
     ports: dict[str, Port] = field(default_factory=dict)
     boards: dict[str, Board] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
+        mpy_dir = self.mpy_root_directory
         # Take care to avoid using Path.glob! Performance was 15x slower.
-        for p in glob("ports/**/boards/**/board.json"):
+        for p in glob(f"{mpy_dir}/ports/**/boards/**/board.json"):
             filename_json = Path(p)
             port_name = filename_json.parent.parent.parent.name
+            if self.port_filter and self.port_filter != port_name:
+                continue
 
             # Create a port
             port = self.ports.get(port_name, None)
@@ -157,8 +155,6 @@ class Database:
 
             # Load board.json and attach it to the board
             board = Board.factory(filename_json)
-            for variant in board.variants:
-                variant.board = board
             board.port = port
 
             port.boards[board.name] = board
@@ -167,7 +163,9 @@ class Database:
         # Add 'special' ports, that don't have boards
         # TODO(mst) Tidy up later (variant descriptions etc)
         for special_port_name in ["unix", "webassembly", "windows"]:
-            path = Path("ports", special_port_name)
+            if self.port_filter and self.port_filter != special_port_name:
+                continue
+            path = Path(mpy_dir, "ports", special_port_name)
             variant_names = [
                 var.name for var in path.glob("variants/*") if var.is_dir()
             ]
