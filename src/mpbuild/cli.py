@@ -8,6 +8,7 @@ from .build import build_board, clean_board, IDF_DEFAULT
 from .list_boards import print_boards
 from .check_images import check_images
 from .completions import list_ports, list_boards, list_variants_for_board
+from .find_boards import parse_board_spec
 
 app = typer.Typer(chain=True)
 
@@ -18,6 +19,21 @@ def _complete(words: list[str], incomplete: str):
         if name.startswith(incomplete):
             completion.append(name)
     return completion
+
+
+def _complete_spec(incomplete: str):
+    parts = incomplete.split("/")
+    if len(parts) == 1:
+        if incomplete.lower() == incomplete:
+            return _complete_port(incomplete)
+        return _complete_board(incomplete)
+    elif len(parts) == 2:
+        if parts[0].lower() == parts[0]:
+            port = parts[0]
+            #todo
+        else:
+            board = parts[0]
+            #todo
 
 
 def _complete_board(incomplete: str):
@@ -35,13 +51,13 @@ def _complete_port(incomplete: str):
 
 @app.command()
 def build(
-    board: Annotated[
-        str, typer.Argument(help="Board name", autocompletion=_complete_board)
+    board_spec: Annotated[
+        str, typer.Argument(help="Board name, optionally with /variant", autocompletion=_complete_spec)
     ],
-    variant: Annotated[
-        Optional[str],
-        typer.Argument(help="Board variant", autocompletion=_complete_variant),
-    ] = None,
+    #variant: Annotated[
+    #    Optional[str],
+    #    typer.Argument(help="Board variant", autocompletion=_complete_variant),
+    #] = None,
     idf: Annotated[
         Optional[str],
         typer.Option(help="esp32 port only: select IDF version to build with"),
@@ -57,17 +73,21 @@ def build(
     """
     Build a MicroPython board.
     """
-    build_board(board, variant, extra_args or [], build_container, idf)
+    port, board, variant = parse_board_spec(board_spec)
+    build_board(board, variant, extra_args or [], build_container, idf, port=port)
 
 
 @app.command()
 def clean(
-    board: str, variant: Annotated[Optional[str], typer.Argument()] = None
+    board_spec: Annotated[
+        str, typer.Argument(help="Board name, optionally with /variant")
+    ],
 ) -> None:
     """
     Clean a MicroPython board.
     """
-    clean_board(board, variant)
+    port, board, variant = parse_board_spec(board_spec)
+    clean_board(board, variant, port=port)
 
 
 @app.command("list")

@@ -24,3 +24,18 @@ def find_mpy_root(root: str| Path | None = None):
                 "Please run from MicroPython source tree or specify with env: MICROPY_DIR"
             )
         root = root.parent
+
+
+def parse_board_spec(spec):
+    """
+    board spec format is <port/>board</variant>
+    ie both port and variant are optional, with just the board as mandatory.
+
+    """
+    port = None
+    specs = spec.split("/")
+    if specs[0].lower() == specs[0]:
+        port = specs.pop(0)
+    board = specs.pop(0)
+    variant = specs[0] if specs else ""
+    return port, board, variant
