@@ -86,6 +86,7 @@ def build_board(
         update_submodules_cmd = ""
 
     home = os.environ["HOME"]
+    mpy_dir = db.mpy_root_directory
 
     # fmt: off
     build_cmd = (
