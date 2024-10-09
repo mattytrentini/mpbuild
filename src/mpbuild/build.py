@@ -31,11 +31,13 @@ nprocs = multiprocessing.cpu_count()
 def build_board(
     board: str,
     variant: Optional[str] = None,
-    extra_args: Optional[List[str]] = [],
+    extra_args: List[str] = [],
     build_container_override: Optional[str] = None,
     idf: Optional[str] = IDF_DEFAULT,
-    mpy_dir: str = None,
+    mpy_dir: str|Path|None = None,
 ) -> None:
+    # mpy_dir = mpy_dir or Path.cwd()
+    # mpy_dir = Path(mpy_dir)
     db = board_database(mpy_dir)
 
     if board not in db.boards.keys():
@@ -123,7 +125,7 @@ def build_board(
         deploy_filename = Path(
             "/".join(
                 [
-                    mpy_dir,
+                    str(mpy_dir),
                     "ports",
                     _board.port.name,
                     "boards",
@@ -141,7 +143,7 @@ def clean_board(
     board: str,
     variant: Optional[str] = None,
     idf: Optional[str] = IDF_DEFAULT,
-    mpy_dir: str = None,
+    mpy_dir: Optional[str] = None,
 ) -> None:
     build_board(
         board=board,

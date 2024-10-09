@@ -1,3 +1,4 @@
+from typing import Optional
 from . import board_database
 from rich.tree import Tree
 from rich import print
@@ -6,7 +7,9 @@ from .cli import OutputFormat
 
 
 def list_boards(
-    port: str = None, fmt: OutputFormat = OutputFormat.rich, mpy_dir: str = None
+    port: Optional[str] = None, 
+    fmt: OutputFormat = OutputFormat.rich, 
+    mpy_dir: Optional[str] = None,
 ) -> None:
     db = board_database(mpy_dir, port)
 
