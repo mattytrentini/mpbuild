@@ -5,28 +5,32 @@ import typer
 
 from . import __app_name__, __version__, OutputFormat
 from .build import build_board, clean_board, IDF_DEFAULT
-from .list_boards import print_boards, list_ports, list_boards, list_variants_for_board
+from .list_boards import print_boards
 from .check_images import check_images
+from .completions import list_ports, list_boards, list_variants_for_board
+
+app = typer.Typer(chain=True)
 
 
-app = typer.Typer()
-
-
-def _complete_board(incomplete: str):
+def _complete(words: list[str], incomplete: str):
     completion = []
-    for name in list_boards():
+    for name in words:
         if name.startswith(incomplete):
             completion.append(name)
     return completion
+
+
+def _complete_board(incomplete: str):
+    return _complete(list_boards(), incomplete)
 
 
 def _complete_variant(ctx: typer.Context, incomplete: str):
     board = ctx.params.get("board") or []
-    completion = []
-    for name in list_variants_for_board(board):
-        if name.startswith(incomplete):
-            completion.append(name)
-    return completion
+    return _complete(list_variants_for_board(board), incomplete)
+
+
+def _complete_port(incomplete: str):
+    return _complete(list_ports(), incomplete)
 
 
 @app.command()
@@ -66,18 +70,10 @@ def clean(
     clean_board(board, variant)
 
 
-def complete_port(incomplete: str):
-    completion = []
-    for name in list_ports():
-        if name.startswith(incomplete):
-            completion.append(name)
-    return completion
-
-
 @app.command("list")
 def list_boards_and_variants(
     port: Annotated[
-        Optional[str], typer.Argument(help="Port name", autocompletion=complete_port)
+        Optional[str], typer.Argument(help="Port name", autocompletion=_complete_port)
     ] = None,
     fmt: Annotated[
         OutputFormat,
