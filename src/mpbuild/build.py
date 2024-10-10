@@ -20,7 +20,7 @@ BUILD_CONTAINERS = {
     "renesas-ra": ARM_BUILD_CONTAINER,
     "samd": ARM_BUILD_CONTAINER,
     "esp32": "espressif/idf",
-    "unix": "micropython/build-micropython-unix",  # Special, doesn't have boards
+    "unix": "gcc:12-bookworm",  # Special, doesn't have boards
 }
 
 IDF_DEFAULT = "v5.2.2"
