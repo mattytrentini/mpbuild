@@ -1,17 +1,18 @@
 from typing import Optional
-from . import board_database
+from . import board_database, OutputFormat
 from rich.tree import Tree
 from rich import print
 
-from .cli import OutputFormat
 
-
-def list_boards(
-    port: Optional[str] = None, 
-    fmt: OutputFormat = OutputFormat.rich, 
+def print_boards(
+    port: Optional[str] = None,
+    fmt: OutputFormat = OutputFormat.rich,
     mpy_dir: Optional[str] = None,
 ) -> None:
     db = board_database(mpy_dir, port)
+
+    if port and port not in db.ports.keys():
+        raise ValueError("Invalid port")
 
     if fmt == OutputFormat.rich:
         tree = Tree(":snake: [bright_white]MicroPython Boards[/]")
@@ -28,8 +29,7 @@ def list_boards(
         print(tree)
 
     if fmt == OutputFormat.text:
-        """ Output a space-separated list of boards (useful for bash
-        completions). Don't display variants."""
+        """ Output a space-separated list of boards. Doesn't display variants."""
         print(
             " ".join(
                 [

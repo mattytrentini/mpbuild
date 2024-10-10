@@ -9,6 +9,7 @@ def find_mpy_root(root: str| Path | None = None):
         root = Path(os.environ.get("MICROPY_DIR", ".")).resolve()
     else:
         root = Path(root)
+
     port = None
     while True:
         # If run from a port folder, store that for use in filters
