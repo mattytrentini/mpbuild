@@ -1,12 +1,12 @@
 from typing import Optional
-from . import board_database
+from . import board_database, OutputFormat
 from rich.tree import Tree
 from rich import print
 
 
 def print_boards(
-    port: Optional[str] = None, 
-    fmt: OutputFormat = OutputFormat.rich, 
+    port: Optional[str] = None,
+    fmt: OutputFormat = OutputFormat.rich,
     mpy_dir: Optional[str] = None,
 ) -> None:
     db = board_database(mpy_dir, port)
