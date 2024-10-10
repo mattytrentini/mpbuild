@@ -91,7 +91,7 @@ class Board:
     Files that explain how to deploy for this board:
     Example: ["../PYBV10/deploy.md"]
     """
-    port: Port = field(default=None, compare=False)
+    port: Port | None= field(default=None, compare=False)
 
     @staticmethod
     def factory(filename_json: Path) -> Board:
@@ -132,8 +132,8 @@ class Database:
     This database contains all information retrieved from all 'board.json' files.
     """
 
-    mpy_root_directory: str = field(repr=False)
-    port_filter: bool = field(default=False, repr=False)
+    mpy_root_directory: Path = field(repr=False)
+    port_filter: str = field(default="", repr=False)
 
     ports: dict[str, Port] = field(default_factory=dict)
     boards: dict[str, Board] = field(default_factory=dict)

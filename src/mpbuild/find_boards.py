@@ -4,10 +4,11 @@ from functools import cache
 
 
 @cache
-def find_mpy_root(root: str = None):
+def find_mpy_root(root: str| Path | None = None):
     if root is None:
         root = Path(os.environ.get("MICROPY_DIR", ".")).resolve()
-
+    else:
+        root = Path(root)
     port = None
     while True:
         # If run from a port folder, store that for use in filters
@@ -15,7 +16,7 @@ def find_mpy_root(root: str = None):
             port = root.name
 
         if (root / "ports").exists() and (root / "mpy-cross").exists():
-            return str(root), port
+            return root, port
 
         if root.parent == root:
             raise SystemExit(
