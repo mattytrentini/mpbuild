@@ -9,7 +9,7 @@ from .list_boards import print_boards
 from .check_images import check_images
 from .completions import list_ports, list_boards, list_variants_for_board
 
-app = typer.Typer(chain=True)
+app = typer.Typer(chain=True, context_settings={"help_option_names": ["-h", "--help"]})
 
 
 def _complete(words: list[str], incomplete: str):
