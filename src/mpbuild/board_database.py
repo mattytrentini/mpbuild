@@ -50,7 +50,7 @@ class Variant:
     """
     Example: "Double precision float + Threads"
     """
-    board: Board
+    board: Board = field(repr=False)
 
 
 @dataclass(order=True)
@@ -120,7 +120,7 @@ class Port:
     """
     Example: "stm32"
     """
-    boards: dict[str, Board] = field(default_factory=dict)
+    boards: dict[str, Board] = field(default_factory=dict, repr=False)
     """
     Example key: "PYBV11"
     """
