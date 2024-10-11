@@ -1,5 +1,6 @@
 import os
-from typing import Optional, List
+import sys
+from typing import Optional, List, Tuple
 
 from pathlib import Path
 import multiprocessing
@@ -34,7 +35,7 @@ def build_board(
     extra_args: List[str] = [],
     build_container_override: Optional[str] = None,
     idf: Optional[str] = IDF_DEFAULT,
-    mpy_dir: str|Path|None = None,
+    mpy_dir: str | Path | None = None,
 ) -> None:
     # mpy_dir = mpy_dir or Path.cwd()
     # mpy_dir = Path(mpy_dir)
@@ -75,11 +76,11 @@ def build_board(
     args = " " + " ".join(extra_args)
 
     make_mpy_cross_cmd = "make -C mpy-cross && "
-    update_submodules_cmd = (
-        f"make -C ports/{port} submodules BOARD={board}{variant_cmd} && "
-    )
-
-    uid, gid = os.getuid(), os.getgid()
+    update_submodules_cmd = f"make -C ports/{port} submodules BOARD={board}{variant_cmd} && "
+    if sys.platform != "win32":
+        uid, gid = os.getuid(), os.getgid()
+    else:
+        uid, gid = (1000, 1000)  # Default to user id 1000 for Windows WSL2
 
     if extra_args and extra_args[0].strip() == "clean":
         # When cleaning we run with full privs
@@ -88,9 +89,11 @@ def build_board(
         make_mpy_cross_cmd = ""
         update_submodules_cmd = ""
 
-    home = os.environ["HOME"]
+    home = str(Path.home())
     mpy_dir = db.mpy_root_directory
 
+    if sys.platform == "win32":
+        mpy_dir, home = adapt_for_wsl(mpy_dir, home)
     # fmt: off
     build_cmd = (
         f"docker run -it --rm "
@@ -108,6 +111,8 @@ def build_board(
         f'make -j {nprocs} -C ports/{port} BOARD={board}{variant_cmd}{args}"'
     )
     # fmt: on
+    if sys.platform == "win32":
+        build_cmd = f"wsl -- {build_cmd}"
 
     title = "Build" if "clean" not in extra_args else "Clean"
     title += f" {port}/{board}" + (f" ({variant})" if variant else "")
@@ -153,3 +158,52 @@ def clean_board(
         idf=idf,
         extra_args=["clean"],
     )
+
+
+def adapt_for_wsl(mpy_dir: Path, home: str) -> Tuple[str, str]:
+    """Adapt paths for running docker from WSL2.
+    Both windows and wsl paths to the repo are supported , but wsl hosted paths are faster.
+    """
+    # wsl2 home directory is /home/<username>
+    r = subprocess.run(
+        'wsl -e bash -c "printenv"', capture_output=True, text=True, universal_newlines=True
+    )
+    for line in r.stdout.splitlines():
+        if line.startswith("HOME="):
+            wsl_home = line.split("=")[1]
+        elif line.startswith("WSL_DISTRO_NAME="):
+            distro = line.split("=")[1]
+
+    # Translate windows paths to wsl paths
+    if ":\\" in str(mpy_dir):
+        warning = (
+            f"The MicroPython repo is located on the Windows path: [bold]{mpy_dir}[/bold].\n"
+            f"While this should work, please note that builds will be [bold]6-60 times slower[/bold].\n"
+            f"For the fastest performance speed, store your files on the WSL file system , for example in: [bold]{home}/micropython[/bold]\n"
+            f"See https://learn.microsoft.com/en-us/windows/wsl/filesystems#file-storage-and-performance-across-file-systems for more information."
+        )
+        print(Panel(warning, title="[bold]Warning[/bold]", title_align="left", style="yellow"))
+
+        # PYBV11 WSL Hosted      : 19s   0:19 minutes
+        # PYBV11 Windows Hosted  : 126s  2:06 minutes (6 times slower)
+        # RPI_PICO WSL Hosted    : 12s   0:20 minutes
+        # RPI_PICO Windows Hosted: 1095s 18:25 minutes (60 times slower)
+        r = subprocess.run(
+            f'wsl wslpath "{mpy_dir}"', capture_output=True, text=True, universal_newlines=True
+        )
+        wsl_mpy_dir = r.stdout.strip()
+    else:
+        # Translate windows unc paths to wsl paths
+        # Assuming distro = Ubuntu
+        distro = distro or "TEST-Ubuntu"
+        wsl_mpy_dir = (
+            mpy_dir.as_posix()
+            .replace(f"//wsl$/{distro}/", "/")
+            .replace(f"//wsl.localhost/{distro}/", "/")
+        )
+        if "//wsl$" in wsl_mpy_dir:
+            raise ValueError(
+                f"mpy_dir: {mpy_dir} is not located on the default WSL2 distro: {distro}."
+            )
+    wsl_home = wsl_home or home
+    return wsl_mpy_dir, wsl_home
