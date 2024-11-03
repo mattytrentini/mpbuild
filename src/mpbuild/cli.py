@@ -8,6 +8,7 @@ from .build import build_board, clean_board, IDF_DEFAULT
 from .list_boards import print_boards
 from .check_images import check_images
 from .completions import list_ports, list_boards, list_variants_for_board
+from .interactive import start_app
 
 app = typer.Typer(chain=True, context_settings={"help_option_names": ["-h", "--help"]})
 
@@ -86,6 +87,11 @@ def list_boards_and_variants(
     List available boards.
     """
     print_boards(port, fmt)
+
+
+@app.command()
+def interactive():
+    start_app()
 
 
 @app.command("check_images")
