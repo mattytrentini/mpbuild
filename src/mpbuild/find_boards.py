@@ -6,9 +6,9 @@ from functools import cache
 @cache
 def find_mpy_root(root: str| Path | None = None):
     if root is None:
-        root = Path(os.environ.get("MICROPY_DIR", ".")).resolve()
+        root = Path(os.environ.get("MICROPY_DIR", ".")).expanduser().resolve()
     else:
-        root = Path(root)
+        root = Path(root).expanduser().resolve()
 
     port = None
     while True:
