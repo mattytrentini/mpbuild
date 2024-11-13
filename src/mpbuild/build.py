@@ -123,21 +123,8 @@ def build_board(
     #    >>> len(db.boards())
     #    169  # 3x boards are the 'special' boards without deployment instructions.
     if _board.deploy and "clean" not in extra_args:
-        deploy_filename = Path(
-            "/".join(
-                [
-                    str(mpy_dir),
-                    "ports",
-                    _board.port.name,
-                    "boards",
-                    _board.name,
-                    _board.deploy[0],
-                ]
-            )
-        )
-        if deploy_filename.is_file():
-            with open(deploy_filename) as deployfile:
-                print(Panel(Markdown(deployfile.read())))
+        if _board.deploy_filename.is_file():
+            print(Panel(Markdown(_board.deploy_filename.read_text())))
 
 
 def clean_board(
