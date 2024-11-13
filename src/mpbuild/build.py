@@ -24,6 +24,24 @@ BUILD_CONTAINERS = {
     "unix": "gcc:12-bookworm",  # Special, doesn't have boards
 }
 
+def get_build_container(variant: Variant) -> str:
+    """
+    Returns the container to be used for this variant.
+
+    Example: variant="RPI_PICO" => "micropython/build-micropython-arm"
+    Example: variant="RPI_PICO RISCV" => "micropython/build-micropython-rp2350riscv"
+    """
+    assert isinstance(variant, Variant)
+    assert variant.board.port is not None
+    port = variant.board.port
+
+    if (variant.board.name == "RPI_PICO2") and (variant.name == "RISCV"):
+        # Special case: This board supports a arm core as default
+        # and a riscv core as a variant
+        return "micropython/build-micropython-rp2350riscv"
+
+    return  BUILD_CONTAINERS[port.name]
+
 IDF_DEFAULT = "v5.2.2"
 
 nprocs = multiprocessing.cpu_count()
@@ -55,7 +73,7 @@ def docker_build_cmd(
     port = board.port
 
     build_container = (
-        build_container_override if build_container_override else BUILD_CONTAINERS[port.name]
+        build_container_override if build_container_override else get_build_container(variant)
     )
 
     if port.name == "esp32" and not build_container_override:
