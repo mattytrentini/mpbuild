@@ -35,7 +35,7 @@ def build_board(
     build_container_override: Optional[str] = None,
     idf: Optional[str] = IDF_DEFAULT,
     mpy_dir: str|Path|None = None,
-) -> pathlib.Path:
+) -> None:
     # mpy_dir = mpy_dir or Path.cwd()
     # mpy_dir = Path(mpy_dir)
     mpy_dir, _ = find_mpy_root(mpy_dir)

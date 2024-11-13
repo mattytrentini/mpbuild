@@ -39,6 +39,10 @@ import json
 from dataclasses import dataclass, field
 from glob import glob
 
+DEFAULT_VARIANT = ""
+"""
+A variant with this name is the default variant.
+"""
 
 @dataclass(order=True)
 class Variant:
@@ -52,6 +56,10 @@ class Variant:
     """
     board: Board = field(repr=False)
 
+    @property
+    def is_default_variant(self) -> bool:
+        return self.name == DEFAULT_VARIANT
+    
 
 @dataclass(order=True)
 class Board:
@@ -67,8 +75,11 @@ class Board:
     variants: list[Variant]
     """
     List of variants available for this board.
-    Variants are sorted. May be an empty list if no variants are available.
-    Example key: "DP_THREAD"
+    Variants are sorted.
+    The default variant is included in the list and is always first!
+    See also the property 'variants_without_default'. 
+
+    Example: ["", "DP_THREAD"]
     """
     url: str
     """
@@ -96,6 +107,11 @@ class Board:
     Files that explain how to deploy for this board:
     Example: ["../PYBV10/deploy.md"]
     """
+    physical_board: bool
+    """
+    physical_board is False for 'special' builds, namely unix, webassembly, windows.
+    True for all actual boards.
+    """
     port: Port | None= field(default=None, compare=False)
 
     @staticmethod
@@ -113,15 +129,29 @@ class Board:
             vendor=board_json["vendor"],
             images=board_json["images"],
             deploy=board_json["deploy"],
+            physical_board=True,
         )
+        board.variants.append(Variant(DEFAULT_VARIANT, "Default variant", board=board))
         board.variants.extend(
-            sorted([Variant(*v, board) for v in board_json.get("variants", {}).items()])
+            sorted([Variant(*v, board=board) for v in board_json.get("variants", {}).items()])
         )
         return board
 
     @property
     def deploy_filename(self) -> Path:
         return self.directory / self.deploy[0]
+
+    @property
+    def default_variant(self) -> Variant:
+        variant = self.variants[0]
+        assert variant.name == DEFAULT_VARIANT
+        return variant
+
+    @property
+    def variants_without_default(self) -> list[Variant]:
+        assert self.variants[0].is_default_variant
+        return self.variants[1:]
+
 
 
 @dataclass(order=True)
@@ -181,9 +211,6 @@ class Database:
             if self.port_filter and self.port_filter != special_port_name:
                 continue
             path = self.mpy_root_directory / "ports" / special_port_name
-            variant_names = [
-                var.name for var in path.glob("variants/*") if var.is_dir()
-            ]
             board = Board(
                 name=special_port_name,
                 directory=path,
@@ -194,8 +221,15 @@ class Database:
                 vendor="",
                 images=[],
                 deploy=[],
+                physical_board=False,
             )
-            board.variants = [Variant(v, "", board) for v in variant_names]
+            board.variants.append(Variant(DEFAULT_VARIANT, "Default variant", board=board))
+            variant_names = [
+                var.name for var in path.glob("variants/*") if var.is_dir()
+            ]
+            board.variants.extend([Variant(name=v, text="", board=board) for v in variant_names])
+
+            
             port = Port(special_port_name, {special_port_name: board})
             board.port = port
 
