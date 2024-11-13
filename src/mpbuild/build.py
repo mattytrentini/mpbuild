@@ -35,7 +35,7 @@ def build_board(
     build_container_override: Optional[str] = None,
     idf: Optional[str] = IDF_DEFAULT,
     mpy_dir: str|Path|None = None,
-) -> None:
+) -> pathlib.Path:
     # mpy_dir = mpy_dir or Path.cwd()
     # mpy_dir = Path(mpy_dir)
     mpy_dir, _ = find_mpy_root(mpy_dir)
@@ -51,7 +51,6 @@ def build_board(
     if variant and variant not in [v.name for v in _board.variants]:
         print("Invalid variant")
         raise SystemExit()
-
     if port not in BUILD_CONTAINERS.keys():
         print(f"Sorry, builds are not supported for the {port} port at this time")
         raise SystemExit()
@@ -113,7 +112,11 @@ def build_board(
     title += f" {port}/{board}" + (f" ({variant})" if variant else "")
     print(Panel(build_cmd, title=title, title_align="left", padding=1))
 
-    subprocess.run(build_cmd, shell=True)
+    proc = subprocess.run(build_cmd, shell=True, check=False)
+
+    if proc.returncode != 0:
+        print(f"ERROR: The following command returned {proc.returncode}: {build_cmd}")
+        raise SystemExit(proc.returncode)
 
     # Display deployment markdown
     # Note: Only displaying the first deploy file.
