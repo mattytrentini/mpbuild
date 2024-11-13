@@ -59,6 +59,11 @@ class Board:
     """
     Example: "PYBV11"
     """
+    directory: Path
+    """
+    The directory of the source code.
+    Example: ".../ports/esp32"
+    """
     variants: list[Variant]
     """
     List of variants available for this board.
@@ -100,6 +105,7 @@ class Board:
 
         board = Board(
             name=filename_json.parent.name,
+            directory=filename_json.parent,
             variants=[],
             url=board_json["url"],
             mcu=board_json["mcu"],
@@ -112,6 +118,10 @@ class Board:
             sorted([Variant(*v, board) for v in board_json.get("variants", {}).items()])
         )
         return board
+
+    @property
+    def deploy_filename(self) -> Path:
+        return self.directory / self.deploy[0]
 
 
 @dataclass(order=True)
@@ -172,14 +182,15 @@ class Database:
                 var.name for var in path.glob("variants/*") if var.is_dir()
             ]
             board = Board(
-                special_port_name,
-                [],
-                f"https://github.com/micropython/micropython/blob/master/ports/{special_port_name}/README.md",
-                "",
-                "",
-                "",
-                [],
-                [],
+                name=special_port_name,
+                directory=path,
+                variants=[],
+                url=f"https://github.com/micropython/micropython/blob/master/ports/{special_port_name}/README.md",
+                mcu="",
+                product="",
+                vendor="",
+                images=[],
+                deploy=[],
             )
             board.variants = [Variant(v, "", board) for v in variant_names]
             port = Port(special_port_name, {special_port_name: board})
