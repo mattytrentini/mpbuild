@@ -70,7 +70,7 @@ class Board:
     directory: Path
     """
     The directory of the source code.
-    Example: ".../ports/esp32"
+    Example: "<repo>/ports/esp32"
     """
     variants: list[Variant]
     """
@@ -112,7 +112,7 @@ class Board:
     physical_board is False for 'special' builds, namely unix, webassembly, windows.
     True for all actual boards.
     """
-    port: Port | None= field(default=None, compare=False)
+    port: Port | None = field(default=None, compare=False)
 
     @staticmethod
     def factory(filename_json: Path) -> Board:
@@ -151,8 +151,12 @@ class Board:
     def variants_without_default(self) -> list[Variant]:
         assert self.variants[0].is_default_variant
         return self.variants[1:]
-
-
+    
+    def find_variant(self, variant: str) -> Variant | None:
+        for v in self.variants:
+            if v.name == variant:
+                return v
+        return None
 
 @dataclass(order=True)
 class Port:
@@ -160,10 +164,25 @@ class Port:
     """
     Example: "stm32"
     """
+    directory: Path
+    """
+    The directory of the source code.
+    Example: "<repo>/ports"
+    """
     boards: dict[str, Board] = field(default_factory=dict, repr=False)
     """
     Example key: "PYBV11"
     """
+
+    @property
+    def directory_repo(self) -> Path:
+        """
+        The top directory of the micropython repo
+        """
+        repo = self.directory.parent
+        assert repo.is_dir(), repo
+        assert (repo / "ports" / "renesas-ra").is_dir()
+        return repo
 
 
 @dataclass
@@ -188,14 +207,15 @@ class Database:
         # Take care to avoid using Path.glob! Performance was 15x slower.
         for p in glob(f"{self.mpy_root_directory}/ports/*/boards/*/board.json"):
             filename_json = Path(p)
-            port_name = filename_json.parent.parent.parent.name
+            port_directory = filename_json.parent.parent.parent
+            port_name = port_directory.name
             if self.port_filter and self.port_filter != port_name:
                 continue
 
             # Create a port
             port = self.ports.get(port_name, None)
             if port is None:
-                port = Port(port_name)
+                port = Port(name=port_name, directory=port_directory.parent)
                 self.ports[port_name] = port
 
             # Load board.json and attach it to the board
@@ -230,7 +250,7 @@ class Database:
             board.variants.extend([Variant(name=v, text="", board=board) for v in variant_names])
 
             
-            port = Port(special_port_name, {special_port_name: board})
+            port = Port(name=special_port_name, directory=path.parent, boards={special_port_name: board})
             board.port = port
 
             self.ports[special_port_name] = port
