@@ -141,7 +141,7 @@ class Database:
     def __post_init__(self) -> None:
         mpy_dir = self.mpy_root_directory
         # Take care to avoid using Path.glob! Performance was 15x slower.
-        for p in glob(f"{mpy_dir}/ports/**/boards/**/board.json"):
+        for p in glob(f"{mpy_dir}/ports/*/boards/*/board.json"):
             filename_json = Path(p)
             port_name = filename_json.parent.parent.parent.name
             if self.port_filter and self.port_filter != port_name:
