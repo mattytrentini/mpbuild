@@ -139,9 +139,11 @@ class Database:
     boards: dict[str, Board] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        mpy_dir = self.mpy_root_directory
+        if not (self.mpy_root_directory / "ports").is_dir():
+            raise ValueError(f"'mpy_root_directory' should point to the top of a micropython repo: {self.mpy_root_directory}")
+
         # Take care to avoid using Path.glob! Performance was 15x slower.
-        for p in glob(f"{mpy_dir}/ports/*/boards/*/board.json"):
+        for p in glob(f"{self.mpy_root_directory}/ports/*/boards/*/board.json"):
             filename_json = Path(p)
             port_name = filename_json.parent.parent.parent.name
             if self.port_filter and self.port_filter != port_name:
@@ -165,7 +167,7 @@ class Database:
         for special_port_name in ["unix", "webassembly", "windows"]:
             if self.port_filter and self.port_filter != special_port_name:
                 continue
-            path = Path(mpy_dir, "ports", special_port_name)
+            path = self.mpy_root_directory / "ports" / special_port_name
             variant_names = [
                 var.name for var in path.glob("variants/*") if var.is_dir()
             ]
