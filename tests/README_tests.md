@@ -16,5 +16,5 @@ export MICROPY_DIR=~/micropython_firmware
 ```bash
 export MICROPY_DIR=~/micropython_firmware
 python tests/test_build_board_for_each_port.py
-python tests/test_test_build_some_variants.py
+python tests/test_build_some_variants.py
 ```

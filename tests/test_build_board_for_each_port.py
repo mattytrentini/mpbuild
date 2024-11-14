@@ -22,11 +22,11 @@ def main():
             for variant in board.variants[0:NUMBER_VARIANTS]:
                 print(f"Testing {variant.name_full}")
                 try:
-                    filename_firmware = build_by_variant(
+                    firmware = build_by_variant(
                         variant=variant,
                         do_clean=False,
                     )
-                    print(f"  {filename_firmware}")
+                    print(f"  {firmware}")
                 except MpbuildNotSupportedException:
                     print("  Not supported!")
 

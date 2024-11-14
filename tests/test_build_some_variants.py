@@ -31,7 +31,7 @@ _VARIANTS_TO_TEST = (
 def get_db() -> Database:
     try:
         mpy_root_directory = Path(os.environ[MICROPY_DIR])
-        return Database(mpy_root_directory=mpy_root_directory, port_filter="")
+        return Database(mpy_root_directory=mpy_root_directory)
     except KeyError as e:
         raise SystemExit(
             f"The environment variable '{MICROPY_DIR}' is not defined!"
@@ -43,12 +43,12 @@ def main():
 
     for variant_str in _VARIANTS_TO_TEST:
         print(f"Testing {variant_str}")
-        filename_firmware = build_by_variant_str(
+        firmware = build_by_variant_str(
             db=db,
             variant_str=variant_str,
             do_clean=False,
         )
-        print(f"  {filename_firmware}")
+        print(f"  {firmware}")
 
 
 if __name__ == "__main__":

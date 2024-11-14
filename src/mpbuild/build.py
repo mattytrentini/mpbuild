@@ -10,7 +10,7 @@ from rich.panel import Panel
 from rich.markdown import Markdown
 
 from . import board_database, find_mpy_root
-from .board_database import Variant
+from .board_database import Variant, DEFAULT_VARIANT
 
 ARM_BUILD_CONTAINER = "micropython/build-micropython-arm"
 BUILD_CONTAINERS = {
@@ -24,6 +24,9 @@ BUILD_CONTAINERS = {
     "unix": "gcc:12-bookworm",  # Special, doesn't have boards
 }
 
+class MpbuildNotSupportedException(Exception):
+    pass
+
 def get_build_container(variant: Variant) -> str:
     """
     Returns the container to be used for this variant.
@@ -35,12 +38,19 @@ def get_build_container(variant: Variant) -> str:
     assert variant.board.port is not None
     port = variant.board.port
 
-    if (variant.board.name == "RPI_PICO2") and (variant.name == "RISCV"):
-        # Special case: This board supports a arm core as default
-        # and a riscv core as a variant
-        return "micropython/build-micropython-rp2350riscv"
+    if variant.board.name == "RPI_PICO2":
+        if variant.name == "RISCV":
+            # Special case: This board supports a arm core as default
+            # and a riscv core as a variant
+            return "micropython/build-micropython-rp2350riscv"
 
-    return  BUILD_CONTAINERS[port.name]
+        # RP2 requires a recent version of gcc
+        return "micropython/build-micropython-arm:bookworm"
+
+    try:
+        return BUILD_CONTAINERS[port.name]
+    except KeyError as e:
+        raise MpbuildNotSupportedException(variant.name) from e
 
 IDF_DEFAULT = "v5.2.2"
 
@@ -144,7 +154,8 @@ def build_board(
 
     _board = db.boards[board]
     port = _board.port.name
-    _variant = _board.find_variant(variant if variant else "")
+    variant = variant if variant else DEFAULT_VARIANT
+    _variant = _board.find_variant(variant)
     if _variant is None:
         print(f"Invalid variant '{variant}'")
         raise SystemExit()

@@ -60,17 +60,23 @@ class Variant:
     def is_default_variant(self) -> bool:
         return self.name == DEFAULT_VARIANT
     
+    @property
+    def name_full(self) -> str:
+        """
+        return <port>-<board>-<variant>
+        """
+        assert self.board.port is not None
+    
+        parts = [self.board.port.name, self.board.name]
+        if not self.is_default_variant:
+            parts.append(self.name)
+        return "-".join(parts)
 
 @dataclass(order=True)
 class Board:
     name: str
     """
     Example: "PYBV11"
-    """
-    directory: Path
-    """
-    The directory of the source code.
-    Example: "<repo>/ports/esp32"
     """
     variants: list[Variant]
     """
@@ -121,7 +127,6 @@ class Board:
 
         board = Board(
             name=filename_json.parent.name,
-            directory=filename_json.parent,
             variants=[],
             url=board_json["url"],
             mcu=board_json["mcu"],
@@ -138,25 +143,62 @@ class Board:
         return board
 
     @property
+    def directory(self) -> Path:
+        """
+        Example: ports/stm32/boards/PYBV11
+        """
+        assert self.port is not None
+        directory_ =  self.port.directory / "boards" / self.name
+        assert directory_.is_dir(), directory_
+        return directory_
+
+    @property
     def deploy_filename(self) -> Path:
+        """
+        Returns the filename of the deploy-markdown.
+        """
         return self.directory / self.deploy[0]
 
     @property
     def default_variant(self) -> Variant:
         variant = self.variants[0]
-        assert variant.name == DEFAULT_VARIANT
+        if self.physical_board:
+            assert variant.name == DEFAULT_VARIANT
         return variant
 
     @property
     def variants_without_default(self) -> list[Variant]:
-        assert self.variants[0].is_default_variant
-        return self.variants[1:]
+        if self.physical_board:
+            # Example 'stm32'
+            assert self.variants[0].is_default_variant
+            return self.variants[1:]
+        # Example 'unix'
+        return self.variants
     
     def find_variant(self, variant: str) -> Variant | None:
+        """
+        Returns the variant.
+        Returns None if not found
+        """
+        if variant == DEFAULT_VARIANT:
+            return self.default_variant
+
         for v in self.variants:
             if v.name == variant:
                 return v
+    
         return None
+    
+    def get_variant(self, variant: str) -> Variant:
+        """
+        Returns the variant.
+        Raise ValueError if variant not found
+        """
+        v = self.find_variant(variant)
+        if v is None:
+            raise ValueError(f"Variant '{variant}' not found for board '{self.name}': Valid variants are: {[v.name for v in self.variants]}")
+        return v
+
 
 @dataclass(order=True)
 class Port:
@@ -167,7 +209,7 @@ class Port:
     directory: Path
     """
     The directory of the source code.
-    Example: "<repo>/ports"
+    Example: "ports/stm32"
     """
     boards: dict[str, Board] = field(default_factory=dict, repr=False)
     """
@@ -179,9 +221,9 @@ class Port:
         """
         The top directory of the micropython repo
         """
-        repo = self.directory.parent
+        repo = self.directory.parent.parent
         assert repo.is_dir(), repo
-        assert (repo / "ports" / "renesas-ra").is_dir()
+        Database.assert_mpy_root_direcory(repo)
         return repo
 
 
@@ -200,9 +242,7 @@ class Database:
     def __post_init__(self) -> None:
         assert isinstance(self.mpy_root_directory, Path)
         assert isinstance(self.port_filter, str)
-
-        if not (self.mpy_root_directory / "ports").is_dir():
-            raise ValueError(f"'mpy_root_directory' should point to the top of a micropython repo: {self.mpy_root_directory}")
+        self.assert_mpy_root_direcory(self.mpy_root_directory)
 
         # Take care to avoid using Path.glob! Performance was 15x slower.
         for p in glob(f"{self.mpy_root_directory}/ports/*/boards/*/board.json"):
@@ -215,7 +255,7 @@ class Database:
             # Create a port
             port = self.ports.get(port_name, None)
             if port is None:
-                port = Port(name=port_name, directory=port_directory.parent)
+                port = Port(name=port_name, directory=port_directory)
                 self.ports[port_name] = port
 
             # Load board.json and attach it to the board
@@ -233,7 +273,6 @@ class Database:
             path = self.mpy_root_directory / "ports" / special_port_name
             board = Board(
                 name=special_port_name,
-                directory=path,
                 variants=[],
                 url=f"https://github.com/micropython/micropython/blob/master/ports/{special_port_name}/README.md",
                 mcu="",
@@ -243,15 +282,32 @@ class Database:
                 deploy=[],
                 physical_board=False,
             )
-            board.variants.append(Variant(DEFAULT_VARIANT, "Default variant", board=board))
             variant_names = [
                 var.name for var in path.glob("variants/*") if var.is_dir()
             ]
             board.variants.extend([Variant(name=v, text="", board=board) for v in variant_names])
 
             
-            port = Port(name=special_port_name, directory=path.parent, boards={special_port_name: board})
+            port = Port(name=special_port_name, directory=path, boards={special_port_name: board})
             board.port = port
 
             self.ports[special_port_name] = port
             self.boards[board.name] = board
+
+    @staticmethod
+    def assert_mpy_root_direcory(directory: Path) -> None:
+        """
+        raises ValueError if 'directory' does not point to a micropyhon repo.
+        """
+        if not (directory / "ports").is_dir():
+            raise ValueError(f"'mpy_root_directory' should point to the top of a micropython repo: {directory}")
+
+    def get_board(self, board: str) -> Board:
+        """
+        Returns the board.
+        Raise ValueError if board not found
+        """
+        try:
+            return self.boards[board]
+        except KeyError as e:
+            raise ValueError(f"Board '{board}' not found. Valid boards are {[b for b in self.boards]}") from e
