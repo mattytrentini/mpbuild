@@ -1,7 +1,7 @@
 [project]
 name = "mpbuild"
-version = "0.1.1"
-description = "Add your description here"
+version = "0.5"
+description = "Build MicroPython firmware with ease!"
 authors = [
     { name = "Matt Trentini", email = "matt.trentini@gmail.com" }
 ]
@@ -29,3 +29,8 @@ allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/mpbuild"]
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.0.1",
+]
