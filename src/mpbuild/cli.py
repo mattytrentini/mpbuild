@@ -9,6 +9,9 @@ from .list_boards import print_boards
 from .check_images import check_images
 from .completions import list_ports, list_boards, list_variants_for_board
 
+import shutil
+from . import board_database
+
 app = typer.Typer(chain=True, context_settings={"help_option_names": ["-h", "--help"]})
 
 
@@ -96,6 +99,49 @@ def image_check(
     Check images
     """
     check_images(verbose)
+
+
+@app.command("copy_board")
+def copy_board(
+    src_board: Annotated[
+        str,
+        typer.Argument(help="Source board (copy from)", autocompletion=_complete_board),
+    ],
+    new_board: Annotated[
+        Optional[str], typer.Argument(help="Name of the new board (copy to)")
+    ] = None,
+) -> None:
+    """
+    Copy a board definition (to start a new board)
+    """
+    # Check for uppercase (allow with -f?)
+    if any(c for c in new_board if c.islower()):
+        print("The new board must not contain lowercase letters")
+        raise SystemExit()
+
+    db = board_database(None)
+
+    if new_board in db.boards.keys():
+        print(
+            f"The new board must have a unique name:\n  {db.boards[new_board].directory} exists"
+        )
+        raise SystemExit()
+
+    if src_board not in db.boards.keys():
+        print("Invalid board")
+        raise SystemExit()
+
+    board = db.boards[src_board]
+
+    dest_path = board.port.directory / "boards" / new_board
+
+    # Check if the destination board name already exists
+    if dest_path.exists():
+        print("Invalid: Destination board name already exists")
+        raise SystemExit()
+
+    print(f"Copying {board.directory} to {dest_path}")
+    shutil.copytree(board.directory, dest_path)
 
 
 def _version_callback(value: bool) -> None:

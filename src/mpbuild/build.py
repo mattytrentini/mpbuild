@@ -34,7 +34,7 @@ def build_board(
     extra_args: List[str] = [],
     build_container_override: Optional[str] = None,
     idf: Optional[str] = IDF_DEFAULT,
-    mpy_dir: str|Path|None = None,
+    mpy_dir: str | Path | None = None,
 ) -> None:
     # mpy_dir = mpy_dir or Path.cwd()
     # mpy_dir = Path(mpy_dir)

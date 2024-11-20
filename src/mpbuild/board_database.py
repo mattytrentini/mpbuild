@@ -59,6 +59,11 @@ class Board:
     """
     Example: "PYBV11"
     """
+    directory: Path
+    """
+    The directory of the source code.
+    Example: "<repo>/ports/esp32/boards/[BOARD]"
+    """
     variants: list[Variant]
     """
     List of variants available for this board.
@@ -91,7 +96,7 @@ class Board:
     Files that explain how to deploy for this board:
     Example: ["../PYBV10/deploy.md"]
     """
-    port: Port | None= field(default=None, compare=False)
+    port: Port | None = field(default=None, compare=False)
 
     @staticmethod
     def factory(filename_json: Path) -> Board:
@@ -100,6 +105,7 @@ class Board:
 
         board = Board(
             name=filename_json.parent.name,
+            directory=filename_json.parent,
             variants=[],
             url=board_json["url"],
             mcu=board_json["mcu"],
@@ -119,6 +125,11 @@ class Port:
     name: str
     """
     Example: "stm32"
+    """
+    directory: Path
+    """
+    The directory of the source code.
+    Example: "ports/stm32"
     """
     boards: dict[str, Board] = field(default_factory=dict, repr=False)
     """
@@ -143,14 +154,15 @@ class Database:
         # Take care to avoid using Path.glob! Performance was 15x slower.
         for p in glob(f"{mpy_dir}/ports/**/boards/**/board.json"):
             filename_json = Path(p)
-            port_name = filename_json.parent.parent.parent.name
+            port_directory = filename_json.parent.parent.parent
+            port_name = port_directory.name
             if self.port_filter and self.port_filter != port_name:
                 continue
 
             # Create a port
             port = self.ports.get(port_name, None)
             if port is None:
-                port = Port(port_name)
+                port = Port(port_name, port_directory)
                 self.ports[port_name] = port
 
             # Load board.json and attach it to the board
@@ -171,6 +183,7 @@ class Database:
             ]
             board = Board(
                 special_port_name,
+                path,
                 [],
                 f"https://github.com/micropython/micropython/blob/master/ports/{special_port_name}/README.md",
                 "",
