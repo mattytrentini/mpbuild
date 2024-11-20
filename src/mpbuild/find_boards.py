@@ -4,7 +4,7 @@ from functools import cache
 
 
 @cache
-def find_mpy_root(root: str| Path | None = None):
+def find_mpy_root(root: str | Path | None = None):
     if root is None:
         root = Path(os.environ.get("MICROPY_DIR", ".")).resolve()
     else:
