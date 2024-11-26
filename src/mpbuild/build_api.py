@@ -45,6 +45,7 @@ class MpbuildDockerException(MpbuildException):
         )
         return "\n  ".join(lines)
 
+
 @dataclass(frozen=True, order=True)
 class Firmware:
     filename: Path
@@ -118,7 +119,12 @@ def build_by_variant(
     assert isinstance(variant, Variant)
     assert isinstance(do_clean, bool)
 
-    build_cmd = docker_build_cmd(variant=variant, do_clean=do_clean, extra_args=[])
+    build_cmd = docker_build_cmd(
+        variant=variant,
+        do_clean=do_clean,
+        extra_args=[],
+        docker_interactive=False,
+    )
 
     proc = subprocess.run(
         build_cmd,

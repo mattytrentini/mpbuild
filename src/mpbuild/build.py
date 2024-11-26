@@ -24,8 +24,10 @@ BUILD_CONTAINERS = {
     "unix": "gcc:12-bookworm",  # Special, doesn't have boards
 }
 
+
 class MpbuildNotSupportedException(Exception):
     pass
+
 
 def get_build_container(variant: Variant) -> str:
     """
@@ -52,6 +54,7 @@ def get_build_container(variant: Variant) -> str:
     except KeyError as e:
         raise MpbuildNotSupportedException(variant.name) from e
 
+
 IDF_DEFAULT = "v5.2.2"
 
 nprocs = multiprocessing.cpu_count()
@@ -63,6 +66,7 @@ def docker_build_cmd(
     do_clean: bool,
     build_container_override: str | None = None,
     idf: str = IDF_DEFAULT,
+    docker_interactive: bool = True,
 ) -> str:
     """
     Returns the docker-command which will build the firmware.
@@ -75,7 +79,7 @@ def docker_build_cmd(
     assert isinstance(variant, Variant), variant
     assert isinstance(extra_args, list), extra_args
     assert isinstance(do_clean, bool), do_clean
-    assert isinstance(build_container_override, str|None), build_container_override
+    assert isinstance(build_container_override, str | None), build_container_override
     assert isinstance(idf, str), idf
 
     board = variant.board
@@ -83,7 +87,9 @@ def docker_build_cmd(
     port = board.port
 
     build_container = (
-        build_container_override if build_container_override else get_build_container(variant)
+        build_container_override
+        if build_container_override
+        else get_build_container(variant)
     )
 
     if port.name == "esp32" and not build_container_override:
@@ -92,7 +98,9 @@ def docker_build_cmd(
         build_container += f":{idf}"
 
     variant_param = "BOARD_VARIANT" if variant.board.physical_board else "VARIANT"
-    variant_cmd = "" if variant.is_default_variant else f" {variant_param}={variant.name}"
+    variant_cmd = (
+        "" if variant.is_default_variant else f" {variant_param}={variant.name}"
+    )
 
     args = " " + " ".join(extra_args)
 
@@ -115,7 +123,8 @@ def docker_build_cmd(
 
     # fmt: off
     build_cmd = (
-        f"docker run -it --rm "
+        f"docker run --rm "
+        f"{'-it ' if docker_interactive else ''}"
         f"-v /sys/bus:/sys/bus "                # provides access to USB for deploy
         f"-v /dev:/dev "                        # provides access to USB for deploy
         f"--net=host --privileged "             # provides access to USB for deploy
@@ -140,7 +149,7 @@ def build_board(
     extra_args: List[str] = [],
     build_container_override: Optional[str] = None,
     idf: Optional[str] = IDF_DEFAULT,
-    mpy_dir: str|Path|None = None,
+    mpy_dir: str | Path | None = None,
 ) -> None:
     # mpy_dir = mpy_dir or Path.cwd()
     # mpy_dir = Path(mpy_dir)
