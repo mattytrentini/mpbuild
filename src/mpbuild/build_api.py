@@ -79,7 +79,8 @@ class Firmware:
 _FIRMWARE_FILENAMES = {
     "stm32": "firmware.dfu",
     "rp2": "firmware.uf2",
-    "esp32": "micropython.bin",
+    "esp32": "firmware.bin",
+    "esp8266": "firmware.bin",
     "unix": "micropython",
 }
 

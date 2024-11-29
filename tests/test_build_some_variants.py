@@ -20,6 +20,7 @@ _VARIANTS_TO_TEST = (
     "RPI_PICO2-RISCV",
     # Standard case
     "PYBV11",
+    "ESP8266_GENERIC",
     # Special case: Variant
     "PYBV11-THREAD",
     # Special case: Unix

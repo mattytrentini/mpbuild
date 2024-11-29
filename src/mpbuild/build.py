@@ -21,6 +21,7 @@ BUILD_CONTAINERS = {
     "renesas-ra": ARM_BUILD_CONTAINER,
     "samd": ARM_BUILD_CONTAINER,
     "esp32": "espressif/idf",
+    "esp8266": "larsks/esp-open-sdk",
     "unix": "gcc:12-bookworm",  # Special, doesn't have boards
 }
 

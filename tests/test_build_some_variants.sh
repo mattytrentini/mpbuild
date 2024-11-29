@@ -29,6 +29,7 @@ mpbuild build RPI_PICO2 RISCV
 
 # Standard case
 mpbuild build PYBV11
+mpbuild build ESP8266_GENERIC
 
 # Special case: Variant
 mpbuild build PYBV11 THREAD
