@@ -39,6 +39,10 @@ import json
 from dataclasses import dataclass, field
 from glob import glob
 
+DEFAULT_VARIANT = ""
+"""
+A variant with this name is the default variant.
+"""
 
 @dataclass(order=True)
 class Variant:
@@ -52,6 +56,21 @@ class Variant:
     """
     board: Board = field(repr=False)
 
+    @property
+    def is_default_variant(self) -> bool:
+        return self.name == DEFAULT_VARIANT
+    
+    @property
+    def name_full(self) -> str:
+        """
+        return <port>-<board>-<variant>
+        """
+        assert self.board.port is not None
+    
+        parts = [self.board.port.name, self.board.name]
+        if not self.is_default_variant:
+            parts.append(self.name)
+        return "-".join(parts)
 
 @dataclass(order=True)
 class Board:
@@ -62,8 +81,11 @@ class Board:
     variants: list[Variant]
     """
     List of variants available for this board.
-    Variants are sorted. May be an empty list if no variants are available.
-    Example key: "DP_THREAD"
+    Variants are sorted.
+    The default variant is included in the list and is always first!
+    See also the property 'variants_without_default'. 
+
+    Example: ["", "DP_THREAD"]
     """
     url: str
     """
@@ -91,7 +113,12 @@ class Board:
     Files that explain how to deploy for this board:
     Example: ["../PYBV10/deploy.md"]
     """
-    port: Port | None= field(default=None, compare=False)
+    physical_board: bool
+    """
+    physical_board is False for 'special' builds, namely unix, webassembly, windows.
+    True for all actual boards.
+    """
+    port: Port | None = field(default=None, compare=False)
 
     @staticmethod
     def factory(filename_json: Path) -> Board:
@@ -107,11 +134,70 @@ class Board:
             vendor=board_json["vendor"],
             images=board_json["images"],
             deploy=board_json["deploy"],
+            physical_board=True,
         )
+        board.variants.append(Variant(DEFAULT_VARIANT, "Default variant", board=board))
         board.variants.extend(
-            sorted([Variant(*v, board) for v in board_json.get("variants", {}).items()])
+            sorted([Variant(*v, board=board) for v in board_json.get("variants", {}).items()])
         )
         return board
+
+    @property
+    def directory(self) -> Path:
+        """
+        Example: ports/stm32/boards/PYBV11
+        """
+        assert self.port is not None
+        directory_ =  self.port.directory / "boards" / self.name
+        assert directory_.is_dir(), directory_
+        return directory_
+
+    @property
+    def deploy_filename(self) -> Path:
+        """
+        Returns the filename of the deploy-markdown.
+        """
+        return self.directory / self.deploy[0]
+
+    @property
+    def default_variant(self) -> Variant:
+        variant = self.variants[0]
+        if self.physical_board:
+            assert variant.name == DEFAULT_VARIANT
+        return variant
+
+    @property
+    def variants_without_default(self) -> list[Variant]:
+        if self.physical_board:
+            # Example 'stm32'
+            assert self.variants[0].is_default_variant
+            return self.variants[1:]
+        # Example 'unix'
+        return self.variants
+    
+    def find_variant(self, variant: str) -> Variant | None:
+        """
+        Returns the variant.
+        Returns None if not found
+        """
+        if variant == DEFAULT_VARIANT:
+            return self.default_variant
+
+        for v in self.variants:
+            if v.name == variant:
+                return v
+    
+        return None
+    
+    def get_variant(self, variant: str) -> Variant:
+        """
+        Returns the variant.
+        Raise ValueError if variant not found
+        """
+        v = self.find_variant(variant)
+        if v is None:
+            raise ValueError(f"Variant '{variant}' not found for board '{self.name}': Valid variants are: {[v.name for v in self.variants]}")
+        return v
 
 
 @dataclass(order=True)
@@ -120,10 +206,25 @@ class Port:
     """
     Example: "stm32"
     """
+    directory: Path
+    """
+    The directory of the source code.
+    Example: "ports/stm32"
+    """
     boards: dict[str, Board] = field(default_factory=dict, repr=False)
     """
     Example key: "PYBV11"
     """
+
+    @property
+    def directory_repo(self) -> Path:
+        """
+        The top directory of the micropython repo
+        """
+        repo = self.directory.parent.parent
+        assert repo.is_dir(), repo
+        Database.assert_mpy_root_direcory(repo)
+        return repo
 
 
 @dataclass
@@ -139,18 +240,22 @@ class Database:
     boards: dict[str, Board] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        mpy_dir = self.mpy_root_directory
+        assert isinstance(self.mpy_root_directory, Path)
+        assert isinstance(self.port_filter, str)
+        self.assert_mpy_root_direcory(self.mpy_root_directory)
+
         # Take care to avoid using Path.glob! Performance was 15x slower.
-        for p in glob(f"{mpy_dir}/ports/**/boards/**/board.json"):
+        for p in glob(f"{self.mpy_root_directory}/ports/*/boards/*/board.json"):
             filename_json = Path(p)
-            port_name = filename_json.parent.parent.parent.name
+            port_directory = filename_json.parent.parent.parent
+            port_name = port_directory.name
             if self.port_filter and self.port_filter != port_name:
                 continue
 
             # Create a port
             port = self.ports.get(port_name, None)
             if port is None:
-                port = Port(port_name)
+                port = Port(name=port_name, directory=port_directory)
                 self.ports[port_name] = port
 
             # Load board.json and attach it to the board
@@ -165,23 +270,44 @@ class Database:
         for special_port_name in ["unix", "webassembly", "windows"]:
             if self.port_filter and self.port_filter != special_port_name:
                 continue
-            path = Path(mpy_dir, "ports", special_port_name)
+            path = self.mpy_root_directory / "ports" / special_port_name
+            board = Board(
+                name=special_port_name,
+                variants=[],
+                url=f"https://github.com/micropython/micropython/blob/master/ports/{special_port_name}/README.md",
+                mcu="",
+                product="",
+                vendor="",
+                images=[],
+                deploy=[],
+                physical_board=False,
+            )
             variant_names = [
                 var.name for var in path.glob("variants/*") if var.is_dir()
             ]
-            board = Board(
-                special_port_name,
-                [],
-                f"https://github.com/micropython/micropython/blob/master/ports/{special_port_name}/README.md",
-                "",
-                "",
-                "",
-                [],
-                [],
-            )
-            board.variants = [Variant(v, "", board) for v in variant_names]
-            port = Port(special_port_name, {special_port_name: board})
+            board.variants.extend([Variant(name=v, text="", board=board) for v in variant_names])
+
+            
+            port = Port(name=special_port_name, directory=path, boards={special_port_name: board})
             board.port = port
 
             self.ports[special_port_name] = port
             self.boards[board.name] = board
+
+    @staticmethod
+    def assert_mpy_root_direcory(directory: Path) -> None:
+        """
+        raises ValueError if 'directory' does not point to a micropyhon repo.
+        """
+        if not (directory / "ports").is_dir():
+            raise ValueError(f"'mpy_root_directory' should point to the top of a micropython repo: {directory}")
+
+    def get_board(self, board: str) -> Board:
+        """
+        Returns the board.
+        Raise ValueError if board not found
+        """
+        try:
+            return self.boards[board]
+        except KeyError as e:
+            raise ValueError(f"Board '{board}' not found. Valid boards are {[b for b in self.boards]}") from e

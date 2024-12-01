@@ -13,5 +13,5 @@ def list_boards() -> list[str]:
 
 def list_variants_for_board(board: str) -> list[str]:
     db = board_database()
-    variants = db.boards[board].variants
+    variants = db.boards[board].variants_without_default
     return [v.name for v in variants if v]

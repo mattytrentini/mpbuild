@@ -21,7 +21,7 @@ def print_boards(
             if not port or (port and port == p.name):
                 treep = tree.add(f"{p.name}   [bright_black]{len(p.boards)}[/]")
                 for b in sorted(p.boards.values()):
-                    variants = ", ".join([v.name for v in b.variants])
+                    variants = ", ".join([v.name for v in b.variants_without_default])
                     variants = f" [bright_black]{variants}[/]" if variants else ""
                     treep.add(
                         f"[bright_white][link={b.url}]{b.name}[/link][/] {variants}"
