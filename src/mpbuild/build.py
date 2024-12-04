@@ -35,6 +35,7 @@ def build_board(
     build_container_override: Optional[str] = None,
     idf: Optional[str] = IDF_DEFAULT,
     mpy_dir: str|Path|None = None,
+    port: str|None = None,
 ) -> None:
     # mpy_dir = mpy_dir or Path.cwd()
     # mpy_dir = Path(mpy_dir)
@@ -46,7 +47,7 @@ def build_board(
         raise SystemExit()
 
     _board = db.boards[board]
-    port = _board.port.name
+    port = port or _board.port.name
 
     if variant and variant not in [v.name for v in _board.variants]:
         print("Invalid variant")
@@ -144,12 +145,14 @@ def clean_board(
     board: str,
     variant: Optional[str] = None,
     idf: Optional[str] = IDF_DEFAULT,
-    mpy_dir: Optional[str] = None,
+    mpy_dir: str|Path|None = None,
+    port: str|None = None,
 ) -> None:
     build_board(
         board=board,
         variant=variant,
         mpy_dir=mpy_dir,
+        port=port,
         idf=idf,
         extra_args=["clean"],
     )
