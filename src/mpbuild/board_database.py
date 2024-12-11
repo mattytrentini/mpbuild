@@ -40,6 +40,10 @@ from dataclasses import dataclass, field
 from glob import glob
 
 
+class MpbuildMpyDirectoryException(Exception):
+    pass
+
+
 @dataclass(order=True)
 class Variant:
     name: str
@@ -58,11 +62,6 @@ class Board:
     name: str
     """
     Example: "PYBV11"
-    """
-    directory: Path
-    """
-    The directory of the source code.
-    Example: ".../ports/esp32"
     """
     variants: list[Variant]
     """
@@ -96,16 +95,20 @@ class Board:
     Files that explain how to deploy for this board:
     Example: ["../PYBV10/deploy.md"]
     """
-    port: Port | None= field(default=None, compare=False)
+    physical_board: bool
+    """
+    physical_board is False for 'special' builds, namely unix, webassembly, windows.
+    True for all actual boards.
+    """
+    port: Port = field(compare=False)
 
     @staticmethod
-    def factory(filename_json: Path) -> Board:
+    def factory(port: Port, filename_json: Path) -> Board:
         with filename_json.open() as f:
             board_json = json.load(f)
 
         board = Board(
             name=filename_json.parent.name,
-            directory=filename_json.parent,
             variants=[],
             url=board_json["url"],
             mcu=board_json["mcu"],
@@ -113,16 +116,45 @@ class Board:
             vendor=board_json["vendor"],
             images=board_json["images"],
             deploy=board_json["deploy"],
+            physical_board=True,
+            port=port,
         )
         board.variants.extend(
-            sorted([Variant(*v, board) for v in board_json.get("variants", {}).items()])
+            sorted([Variant(*v, board=board) for v in board_json.get("variants", {}).items()])
         )
         return board
 
     @property
+    def directory(self) -> Path:
+        """
+        Example: ports/stm32/boards/PYBV11
+        """
+        if self.physical_board:
+            directory_ = self.port.directory / "boards" / self.name
+        else:
+            directory_ = self.port.directory
+        if not directory_.is_dir():
+            raise ValueError(f"Directory does not exist: {directory_}")
+        return directory_
+
+    @property
     def deploy_filename(self) -> Path:
+        """
+        Returns the filename of the deploy-markdown.
+        """
         return self.directory / self.deploy[0]
 
+    def find_variant(self, variant: str) -> Variant | None:
+        """
+        Returns the variant.
+        Returns None if not found.
+        There is NO variant object for the default variant!
+        """
+        for v in self.variants:
+            if v.name == variant:
+                return v
+    
+        return None
 
 @dataclass(order=True)
 class Port:
@@ -130,10 +162,24 @@ class Port:
     """
     Example: "stm32"
     """
+    directory: Path
+    """
+    The directory of the source code.
+    Example: "ports/stm32"
+    """
     boards: dict[str, Board] = field(default_factory=dict, repr=False)
     """
     Example key: "PYBV11"
     """
+
+    @property
+    def directory_repo(self) -> Path:
+        """
+        The top directory of the micropython repo
+        """
+        repo = self.directory.parent.parent
+        Database.assert_mpy_root_direcory(repo)
+        return repo
 
 
 @dataclass
@@ -155,19 +201,19 @@ class Database:
         # Take care to avoid using Path.glob! Performance was 15x slower.
         for p in glob(f"{self.mpy_root_directory}/ports/*/boards/*/board.json"):
             filename_json = Path(p)
-            port_name = filename_json.parent.parent.parent.name
+            port_directory = filename_json.parent.parent.parent
+            port_name = port_directory.name
             if self.port_filter and self.port_filter != port_name:
                 continue
 
             # Create a port
             port = self.ports.get(port_name, None)
             if port is None:
-                port = Port(port_name)
+                port = Port(name=port_name, directory=port_directory)
                 self.ports[port_name] = port
 
             # Load board.json and attach it to the board
-            board = Board.factory(filename_json)
-            board.port = port
+            board = Board.factory(port=port, filename_json=filename_json)
 
             port.boards[board.name] = board
             self.boards[board.name] = board
@@ -181,9 +227,9 @@ class Database:
             variant_names = [
                 var.name for var in path.glob("variants/*") if var.is_dir()
             ]
+            port = Port(name=special_port_name, directory=path, boards={special_port_name: board})
             board = Board(
                 name=special_port_name,
-                directory=path,
                 variants=[],
                 url=f"https://github.com/micropython/micropython/blob/master/ports/{special_port_name}/README.md",
                 mcu="",
@@ -191,10 +237,18 @@ class Database:
                 vendor="",
                 images=[],
                 deploy=[],
+                physical_board=False,
+                port=port,
             )
-            board.variants = [Variant(v, "", board) for v in variant_names]
-            port = Port(special_port_name, {special_port_name: board})
-            board.port = port
-
+            board.variants = [Variant(name=v, text="", board=board) for v in variant_names]
+      
             self.ports[special_port_name] = port
             self.boards[board.name] = board
+
+    @staticmethod
+    def assert_mpy_root_direcory(directory: Path) -> None:
+        """
+        raises ValueError if 'directory' does not point to a micropyhon repo.
+        """
+        if not (directory / "ports").is_dir():
+            raise MpbuildMpyDirectoryException(f"Directory does not point to the top of a micropython repo: {directory}")

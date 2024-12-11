@@ -10,6 +10,7 @@ from rich.panel import Panel
 from rich.markdown import Markdown
 
 from . import board_database, find_mpy_root
+from .board_database import Board
 
 ARM_BUILD_CONTAINER = "micropython/build-micropython-arm"
 BUILD_CONTAINERS = {
@@ -20,67 +21,95 @@ BUILD_CONTAINERS = {
     "renesas-ra": ARM_BUILD_CONTAINER,
     "samd": ARM_BUILD_CONTAINER,
     "esp32": "espressif/idf",
+    "esp8266": "larsks/esp-open-sdk",
     "unix": "gcc:12-bookworm",  # Special, doesn't have boards
 }
+
+
+class MpbuildNotSupportedException(Exception):
+    pass
+
+
+def get_build_container(board: Board, variant: Optional[str] = None) -> str:
+    """
+    Returns the container to be used for this variant.
+
+    Example: board="RPI_PICO" => "micropython/build-micropython-arm"
+    Example: board="RPI_PICO", variant="RISCV" => "micropython/build-micropython-rp2350riscv"
+    """
+    port = board.port
+
+    if board.name == "RPI_PICO2":
+        if variant == "RISCV":
+            # Special case: This board supports a arm core as default
+            # and a riscv core as a variant
+            return "micropython/build-micropython-rp2350riscv"
+
+        # RP2 requires a recent version of gcc
+        return "micropython/build-micropython-arm:bookworm"
+
+    try:
+        return BUILD_CONTAINERS[port.name]
+    except KeyError as e:
+        raise MpbuildNotSupportedException(f"{board.name}-{variant}") from e
+
 
 IDF_DEFAULT = "v5.2.2"
 
 nprocs = multiprocessing.cpu_count()
 
 
-def build_board(
-    board: str,
+def docker_build_cmd(
+    board: Board,
     variant: Optional[str] = None,
     extra_args: List[str] = [],
-    build_container_override: Optional[str] = None,
-    idf: Optional[str] = IDF_DEFAULT,
-    mpy_dir: str|Path|None = None,
-) -> pathlib.Path:
-    # mpy_dir = mpy_dir or Path.cwd()
-    # mpy_dir = Path(mpy_dir)
-    mpy_dir, _ = find_mpy_root(mpy_dir)
-    db = board_database(mpy_dir)
+    do_clean: bool = False,
+    build_container_override: str | None = None,
+    idf: str = IDF_DEFAULT,
+    docker_interactive: bool = True,
+) -> str:
+    """
+    Returns the docker-command which will build the firmware.
 
-    if board not in db.boards.keys():
-        print("Invalid board")
-        raise SystemExit()
+    This is the command which may be called programatically.
+    Therefor this command should NOT:
+      * write to stdout/stderr
+      * exit the program
+    """
 
-    _board = db.boards[board]
-    port = _board.port.name
+    port = board.port
 
-    if variant and variant not in [v.name for v in _board.variants]:
-        print("Invalid variant")
-        raise SystemExit()
-    if port not in BUILD_CONTAINERS.keys():
-        print(f"Sorry, builds are not supported for the {port} port at this time")
-        raise SystemExit()
-
-    if port != "esp32" and idf != IDF_DEFAULT:
-        print("An IDF version can only be specified for ESP32 builds")
-        raise SystemExit()
-
+    if variant is not None:
+        v = board.find_variant(variant)
+        if v is None:
+            raise ValueError(
+                f"Variant '{variant}' not found for board '{board.name}': Valid variants are: {[v.name for v in board.variants]}"
+            )
+    
     build_container = (
-        build_container_override if build_container_override else BUILD_CONTAINERS[port]
+        build_container_override
+        if build_container_override
+        else get_build_container(board=board, variant=variant)
     )
 
-    if port == "esp32" and not build_container_override:
+    if port.name == "esp32" and not build_container_override:
         if not idf:
             idf = IDF_DEFAULT
         build_container += f":{idf}"
 
-    variant_param = "VARIANT" if board == port else "BOARD_VARIANT"
-    variant_cmd = f" {variant_param}={variant}" if variant else ""
+    variant_param = "BOARD_VARIANT" if board.physical_board else "VARIANT"
+    variant_cmd = "" if variant is None else f" {variant_param}={variant}"
 
     args = " " + " ".join(extra_args)
 
     make_mpy_cross_cmd = "make -C mpy-cross && "
     update_submodules_cmd = (
-        f"make -C ports/{port} submodules BOARD={board}{variant_cmd} && "
+        f"make -C ports/{port.name} submodules BOARD={board.name}{variant_cmd} && "
     )
 
     uid, gid = os.getuid(), os.getgid()
 
-    if extra_args and extra_args[0].strip() == "clean":
+    if do_clean:
         # When cleaning we run with full privs
         uid, gid = 0, 0
         # Don't need to build mpy_cross or update submodules
@@ -88,11 +117,12 @@ def build_board(
         update_submodules_cmd = ""
 
     home = os.environ["HOME"]
-    mpy_dir = db.mpy_root_directory
+    mpy_dir = str(port.directory_repo)
 
     # fmt: off
     build_cmd = (
-        f"docker run -it --rm "
+        f"docker run --rm "
+        f"{'-it ' if docker_interactive else ''}"
         f"-v /sys/bus:/sys/bus "                # provides access to USB for deploy
         f"-v /dev:/dev "                        # provides access to USB for deploy
         f"--net=host --privileged "             # provides access to USB for deploy
@@ -104,11 +134,65 @@ def build_board(
         f"git config --global --add safe.directory '*' 2> /dev/null;"
         f'{make_mpy_cross_cmd}'
         f'{update_submodules_cmd}'
-        f'make -j {nprocs} -C ports/{port} BOARD={board}{variant_cmd}{args}"'
+        f'make -j {nprocs} -C ports/{port.name} BOARD={board.name}{variant_cmd}{args}"'
     )
     # fmt: on
 
-    title = "Build" if "clean" not in extra_args else "Clean"
+    return build_cmd
+
+
+def build_board(
+    board: str,
+    variant: Optional[str] = None,
+    extra_args: List[str] = [],
+    build_container_override: Optional[str] = None,
+    idf: Optional[str] = IDF_DEFAULT,
+    mpy_dir: str | Path | None = None,
+) -> None:
+    """
+    Build the firmware
+
+    This is the command used by the command line version and
+    therefore
+      * writes to stdout/stderr
+      * exit the program on failure
+    """
+    mpy_dir, _ = find_mpy_root(mpy_dir)
+    db = board_database(mpy_dir)
+    mpy_dir = db.mpy_root_directory
+
+    if board not in db.boards.keys():
+        print("Invalid board")
+        raise SystemExit()
+
+    _board = db.boards[board]
+    port = _board.port.name
+
+    if variant is not None:
+        _variant = _board.find_variant(variant)
+        if _variant is None:
+            print(f"Invalid variant '{variant}'")
+            raise SystemExit()
+
+    if port not in BUILD_CONTAINERS.keys():
+        print(f"Sorry, builds are not supported for the {port} port at this time")
+        raise SystemExit()
+
+    if port != "esp32" and idf != IDF_DEFAULT:
+        print("An IDF version can only be specified for ESP32 builds")
+        raise SystemExit()
+
+    do_clean = bool(extra_args and extra_args[0].strip() == "clean")
+    build_cmd = docker_build_cmd(
+        board=_board,
+        variant=variant,
+        extra_args=extra_args,
+        do_clean=do_clean,
+        build_container_override=build_container_override,
+        idf=idf,
+    )
+
+    title = "Build" if do_clean else "Clean"
     title += f" {port}/{board}" + (f" ({variant})" if variant else "")
     print(Panel(build_cmd, title=title, title_align="left", padding=1))
 
