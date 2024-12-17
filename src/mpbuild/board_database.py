@@ -98,7 +98,7 @@ class Board:
     physical_board: bool
     """
     physical_board is False for 'special' builds, namely unix, webassembly, windows.
-    True for all actual boards.
+    True for all regular boards.
     """
     port: Port = field(compare=False)
 
@@ -120,7 +120,12 @@ class Board:
             port=port,
         )
         board.variants.extend(
-            sorted([Variant(*v, board=board) for v in board_json.get("variants", {}).items()])
+            sorted(
+                [
+                    Variant(*v, board=board)
+                    for v in board_json.get("variants", {}).items()
+                ]
+            )
         )
         return board
 
@@ -144,17 +149,19 @@ class Board:
         """
         return self.directory / self.deploy[0]
 
+    # TODO(mst): Update Variant to allow comparisons to strings. This method can
+    # then be removed.
+    # ie add Variant.__eq__(self, other) where other can be a string.
     def find_variant(self, variant: str) -> Variant | None:
         """
-        Returns the variant.
-        Returns None if not found.
-        There is NO variant object for the default variant!
+        Returns the variant, None if not found.
         """
         for v in self.variants:
             if v.name == variant:
                 return v
-    
+
         return None
+
 
 @dataclass(order=True)
 class Port:
@@ -164,7 +171,7 @@ class Port:
     """
     directory: Path
     """
-    The directory of the source code.
+    The directory of the port source code.
     Example: "ports/stm32"
     """
     boards: dict[str, Board] = field(default_factory=dict, repr=False)
@@ -175,7 +182,7 @@ class Port:
     @property
     def directory_repo(self) -> Path:
         """
-        The top directory of the micropython repo
+        The top directory of the MicroPython repo
         """
         repo = self.directory.parent.parent
         Database.assert_mpy_root_direcory(repo)
@@ -196,7 +203,9 @@ class Database:
 
     def __post_init__(self) -> None:
         if not (self.mpy_root_directory / "ports").is_dir():
-            raise ValueError(f"'mpy_root_directory' should point to the top of a micropython repo: {self.mpy_root_directory}")
+            raise ValueError(
+                f"'mpy_root_directory' should point to the top of a MicroPython repo: {self.mpy_root_directory}"
+            )
 
         # Take care to avoid using Path.glob! Performance was 15x slower.
         for p in glob(f"{self.mpy_root_directory}/ports/*/boards/*/board.json"):
@@ -227,7 +236,11 @@ class Database:
             variant_names = [
                 var.name for var in path.glob("variants/*") if var.is_dir()
             ]
-            port = Port(name=special_port_name, directory=path, boards={special_port_name: board})
+            port = Port(
+                name=special_port_name,
+                directory=path,
+                boards={special_port_name: board},
+            )
             board = Board(
                 name=special_port_name,
                 variants=[],
@@ -240,8 +253,10 @@ class Database:
                 physical_board=False,
                 port=port,
             )
-            board.variants = [Variant(name=v, text="", board=board) for v in variant_names]
-      
+            board.variants = [
+                Variant(name=v, text="", board=board) for v in variant_names
+            ]
+
             self.ports[special_port_name] = port
             self.boards[board.name] = board
 
@@ -251,4 +266,6 @@ class Database:
         raises ValueError if 'directory' does not point to a micropyhon repo.
         """
         if not (directory / "ports").is_dir():
-            raise MpbuildMpyDirectoryException(f"Directory does not point to the top of a micropython repo: {directory}")
+            raise MpbuildMpyDirectoryException(
+                f"Directory does not point to the top of a micropython repo: {directory}"
+            )

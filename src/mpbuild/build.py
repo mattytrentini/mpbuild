@@ -32,7 +32,7 @@ class MpbuildNotSupportedException(Exception):
 
 def get_build_container(board: Board, variant: Optional[str] = None) -> str:
     """
-    Returns the container to be used for this variant.
+    Returns the container to be used for this board/variant.
 
     Example: board="RPI_PICO" => "micropython/build-micropython-arm"
     Example: board="RPI_PICO", variant="RISCV" => "micropython/build-micropython-rp2350riscv"
@@ -41,8 +41,8 @@ def get_build_container(board: Board, variant: Optional[str] = None) -> str:
 
     if board.name == "RPI_PICO2":
         if variant == "RISCV":
-            # Special case: This board supports a arm core as default
-            # and a riscv core as a variant
+            # Special case: This board supports an ARM core as default
+            # and a RISC-V core as a variant
             return "micropython/build-micropython-rp2350riscv"
 
         # RP2 requires a recent version of gcc
@@ -70,22 +70,17 @@ def docker_build_cmd(
 ) -> str:
     """
     Returns the docker-command which will build the firmware.
-
-    This is the command which may be called programatically.
-    Therefor this command should NOT:
-      * write to stdout/stderr
-      * exit the program
     """
 
     port = board.port
 
-    if variant is not None:
+    if variant:
         v = board.find_variant(variant)
-        if v is None:
+        if not v:
             raise ValueError(
                 f"Variant '{variant}' not found for board '{board.name}': Valid variants are: {[v.name for v in board.variants]}"
             )
-    
+
     build_container = (
         build_container_override
         if build_container_override
@@ -150,12 +145,9 @@ def build_board(
     mpy_dir: str | Path | None = None,
 ) -> None:
     """
-    Build the firmware
+    Build the firmware.
 
-    This is the command used by the command line version and
-    therefore
-      * writes to stdout/stderr
-      * exit the program on failure
+    This command writes to stdout/stderr and may exit the program on failure.
     """
     mpy_dir, _ = find_mpy_root(mpy_dir)
     db = board_database(mpy_dir)
@@ -202,14 +194,14 @@ def build_board(
         print(f"ERROR: The following command returned {proc.returncode}: {build_cmd}")
         raise SystemExit(proc.returncode)
 
-    # Display deployment markdown
+    # Display deployment markdown for successful builds
     # Note: Only displaying the first deploy file.
     # Q: Are there cases where there's >1? A: Currently, no.
     #    >>> sum([len(b.deploy) for b in db.boards.values()])
     #    166
     #    >>> len(db.boards())
     #    169  # 3x boards are the 'special' boards without deployment instructions.
-    if _board.deploy and "clean" not in extra_args:
+    if _board.deploy and "clean" not in extra_args and proc.returncode == 0:
         if _board.deploy_filename.is_file():
             print(Panel(Markdown(_board.deploy_filename.read_text())))
 
