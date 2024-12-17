@@ -4,13 +4,13 @@ from functools import cache
 
 
 @cache
-def find_mpy_root(root: str| Path | None = None):
+def find_mpy_root(root: str| Path | None = None) -> tuple[Path, str]:
     if root is None:
         root = Path(os.environ.get("MICROPY_DIR", ".")).resolve()
     else:
         root = Path(root)
 
-    port = None
+    port = ""
     while True:
         # If run from a port folder, store that for use in filters
         if root.parent.name == "ports":
