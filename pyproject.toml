@@ -1,6 +1,6 @@
 [project]
 name = "mpbuild"
-version = "0.5"
+version = "0.6"
 description = "Build MicroPython firmware with ease!"
 authors = [
     { name = "Matt Trentini", email = "matt.trentini@gmail.com" }
