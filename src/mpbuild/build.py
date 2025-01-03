@@ -39,7 +39,7 @@ def get_build_container(board: Board, variant: Optional[str] = None) -> str:
     """
     port = board.port
 
-    if board.name == "RPI_PICO2":
+    if port.name == "rp2":
         if variant == "RISCV":
             # Special case: This board supports an ARM core as default
             # and a RISC-V core as a variant
