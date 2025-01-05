@@ -54,7 +54,7 @@ def get_build_container(board: Board, variant: Optional[str] = None) -> str:
         raise MpbuildNotSupportedException(f"{board.name}-{variant}") from e
 
 
-IDF_DEFAULT = "v5.2.2"
+IDF_DEFAULT = "v5.3.1"
 
 nprocs = multiprocessing.cpu_count()
 
