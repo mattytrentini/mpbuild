@@ -64,6 +64,7 @@ def docker_build_cmd(
     do_clean: bool = False,
     build_container_override: str | None = None,
     docker_interactive: bool = True,
+    privileged: bool = True,
 ) -> str:
     """
     Returns the docker-command which will build the firmware.
@@ -105,12 +106,17 @@ def docker_build_cmd(
     mpy_dir = str(port.directory_repo)
 
     # fmt: off
+    args_privileged = (
+        "-v /sys/bus:/sys/bus "                 # provides access to USB for deploy
+        "-v /dev:/dev "                         # provides access to USB for deploy
+        "--net=host "                           # provides access to USB for deploy
+        "--privileged "                         # provides access to USB for deploy
+    ) if privileged else ""
+
     build_cmd = (
         f"docker run --rm "
         f"{'-it ' if docker_interactive else ''}"
-        f"-v /sys/bus:/sys/bus "                # provides access to USB for deploy
-        f"-v /dev:/dev "                        # provides access to USB for deploy
-        f"--net=host --privileged "             # provides access to USB for deploy
+        f"{args_privileged}"
         f"-v {mpy_dir}:{mpy_dir} -w {mpy_dir} " # mount micropython dir with same path so elf/map paths match host
         f"--user {uid}:{gid} "                  # match running user id so generated files aren't owned by root
         f"-v {home}:{home} -e HOME={home} "     # when changing user id to one not present in container this ensures home is writable
