@@ -98,9 +98,7 @@ def docker_build_cmd(
     args = " " + " ".join(extra_args)
 
     make_mpy_cross_cmd = "make -C mpy-cross && "
-    update_submodules_cmd = (
-        f"make -C ports/{port.name} submodules BOARD={board.name}{variant_cmd} && "
-    )
+    update_submodules_cmd = f"make -C ports/{port.name} submodules && "
 
     uid, gid = os.getuid(), os.getgid()
 
