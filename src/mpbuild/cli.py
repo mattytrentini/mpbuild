@@ -4,7 +4,7 @@ from typing_extensions import Annotated
 import typer
 
 from . import __app_name__, __version__, OutputFormat
-from .build import build_board, clean_board, IDF_DEFAULT
+from .build import build_board, clean_board
 from .list_boards import print_boards
 from .check_images import check_images
 from .completions import list_ports, list_boards, list_variants_for_board
@@ -42,10 +42,6 @@ def build(
         Optional[str],
         typer.Argument(help="Board variant", autocompletion=_complete_variant),
     ] = None,
-    idf: Annotated[
-        Optional[str],
-        typer.Option(help="esp32 port only: select IDF version to build with"),
-    ] = IDF_DEFAULT,
     extra_args: Annotated[
         Optional[List[str]], typer.Argument(help="additional arguments to pass to make")
     ] = None,

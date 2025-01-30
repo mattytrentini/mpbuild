@@ -20,7 +20,7 @@ BUILD_CONTAINERS = {
     "mimxrt": ARM_BUILD_CONTAINER,
     "renesas-ra": ARM_BUILD_CONTAINER,
     "samd": ARM_BUILD_CONTAINER,
-    "esp32": "espressif/idf",
+    "esp32": "espressif/idf:v5.2.2",
     "esp8266": "larsks/esp-open-sdk",
     "unix": "gcc:12-bookworm",  # Special, doesn't have boards
 }
@@ -54,8 +54,6 @@ def get_build_container(board: Board, variant: Optional[str] = None) -> str:
         raise MpbuildNotSupportedException(f"{board.name}-{variant}") from e
 
 
-IDF_DEFAULT = "v5.2.2"
-
 nprocs = multiprocessing.cpu_count()
 
 
@@ -65,7 +63,6 @@ def docker_build_cmd(
     extra_args: List[str] = [],
     do_clean: bool = False,
     build_container_override: str | None = None,
-    idf: str = IDF_DEFAULT,
     docker_interactive: bool = True,
 ) -> str:
     """
@@ -86,11 +83,6 @@ def docker_build_cmd(
         if build_container_override
         else get_build_container(board=board, variant=variant)
     )
-
-    if port.name == "esp32" and not build_container_override:
-        if not idf:
-            idf = IDF_DEFAULT
-        build_container += f":{idf}"
 
     variant_param = "BOARD_VARIANT" if board.physical_board else "VARIANT"
     variant_cmd = "" if variant is None else f" {variant_param}={variant}"
@@ -139,7 +131,6 @@ def build_board(
     variant: Optional[str] = None,
     extra_args: List[str] = [],
     build_container_override: Optional[str] = None,
-    idf: Optional[str] = IDF_DEFAULT,
     mpy_dir: str | Path | None = None,
 ) -> None:
     """
@@ -168,10 +159,6 @@ def build_board(
         print(f"Sorry, builds are not supported for the {port} port at this time")
         raise SystemExit()
 
-    if port != "esp32" and idf != IDF_DEFAULT:
-        print("An IDF version can only be specified for ESP32 builds")
-        raise SystemExit()
-
     do_clean = bool(extra_args and extra_args[0].strip() == "clean")
     build_cmd = docker_build_cmd(
         board=_board,
@@ -179,7 +166,6 @@ def build_board(
         extra_args=extra_args,
         do_clean=do_clean,
         build_container_override=build_container_override,
-        idf=idf,
     )
 
     title = "Build" if do_clean else "Clean"
@@ -207,13 +193,11 @@ def build_board(
 def clean_board(
     board: str,
     variant: Optional[str] = None,
-    idf: Optional[str] = IDF_DEFAULT,
     mpy_dir: Optional[str] = None,
 ) -> None:
     build_board(
         board=board,
         variant=variant,
         mpy_dir=mpy_dir,
-        idf=idf,
         extra_args=["clean"],
     )
