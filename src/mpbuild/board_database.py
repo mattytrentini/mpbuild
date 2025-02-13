@@ -110,7 +110,7 @@ class Board:
         board = Board(
             name=filename_json.parent.name,
             variants=[],
-            url=board_json["url"],
+            url=board_json.get("url", "http://micropython.org"),
             mcu=board_json["mcu"],
             product=board_json["product"],
             vendor=board_json["vendor"],
