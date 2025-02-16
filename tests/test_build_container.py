@@ -9,6 +9,7 @@ from mpbuild.build import (
     ARM_BUILD_CONTAINER,
     ESP_IDF_CONTAINER,
     ESP_IDF_FALLBACK_VERSION,
+    WIN_BUILD_CONTAINER,
     MpbuildNotSupportedException,
     get_build_container,
 )
@@ -52,7 +53,18 @@ class TestSimplePorts:
         db = Database(mpy_root)
         assert get_build_container(db.boards["unix"]) == "gcc:12-bookworm"
 
-    def test_unsupported_port_raises(self, mpy_root):
+    def test_webassembly_special_port(self, mpy_root):
+        """The 'webassembly' special port reuses the ARM build container; emsdk
+        is installed at build time via tools/ci.sh."""
+        db = Database(mpy_root)
+        assert get_build_container(db.boards["webassembly"]) == ARM_BUILD_CONTAINER
+
+    def test_windows_special_port(self, mpy_root):
+        """The 'windows' special port resolves to the MinGW cross-compile container."""
+        db = Database(mpy_root)
+        assert get_build_container(db.boards["windows"]) == WIN_BUILD_CONTAINER
+
+    def test_unsupported_port_raises(self, mpy_root, make_board):
         """Ports not in BUILD_CONTAINERS raise MpbuildNotSupportedException."""
         # 'webassembly' is auto-added as a special port but is not in BUILD_CONTAINERS.
         db = Database(mpy_root)
