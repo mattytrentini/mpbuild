@@ -55,7 +55,7 @@ def build(
     """
     if variant == "":
         variant = None
-    build_board(board, variant, extra_args or [], build_container, idf)
+    build_board(board, variant, extra_args or [], build_container)
 
 
 @app.command()
