@@ -34,10 +34,10 @@ provides a way to browse it's data.
 
 from __future__ import annotations
 
-from pathlib import Path
 import json
 from dataclasses import dataclass, field
 from glob import glob
+from pathlib import Path
 
 
 class MpbuildMpyDirectoryException(Exception):
@@ -159,6 +159,9 @@ class Board:
         for v in self.variants:
             if v.name == variant:
                 return v
+        print(
+            f"Variant '{variant}' not found for board '{self.name}': Valid variants are: {[v.name for v in self.variants]}"
+        )
 
         return None
 
@@ -239,7 +242,6 @@ class Database:
             port = Port(
                 name=special_port_name,
                 directory=path,
-                boards={special_port_name: board},
             )
             board = Board(
                 name=special_port_name,
@@ -253,10 +255,8 @@ class Database:
                 physical_board=False,
                 port=port,
             )
-            board.variants = [
-                Variant(name=v, text="", board=board) for v in variant_names
-            ]
-
+            port.boards = {special_port_name: board}
+            board.variants = [Variant(name=v, text="", board=board) for v in variant_names]
             self.ports[special_port_name] = port
             self.boards[board.name] = board
 
