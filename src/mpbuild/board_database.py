@@ -143,11 +143,11 @@ class Board:
         return directory_
 
     @property
-    def deploy_filename(self) -> Path:
+    def deploy_filename(self) -> Path | None:
         """
-        Returns the filename of the deploy-markdown.
+        Returns the filename of the deploy-markdown, or None.
         """
-        return self.directory / self.deploy[0]
+        return self.directory / self.deploy[0] if self.deploy else None
 
     # TODO(mst): Update Variant to allow comparisons to strings. This method can
     # then be removed.
