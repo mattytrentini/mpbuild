@@ -1,13 +1,12 @@
-import os
-from typing import Optional, List
-
-from pathlib import Path
 import multiprocessing
+import os
 import subprocess
+from pathlib import Path
+from typing import List, Optional
 
 from rich import print
-from rich.panel import Panel
 from rich.markdown import Markdown
+from rich.panel import Panel
 
 from . import board_database, find_mpy_root
 from .board_database import Board
@@ -23,6 +22,8 @@ BUILD_CONTAINERS = {
     "esp32": "espressif/idf:v5.2.2",
     "esp8266": "larsks/esp-open-sdk",
     "unix": "gcc:12-bookworm",  # Special, doesn't have boards
+    "webassembly": ARM_BUILD_CONTAINER,  # installs emsdk on first build
+    "windows": "micropython/build-micropython-win-mingw",  # cross compile linux to windows
 }
 
 
@@ -79,13 +80,19 @@ def docker_build_cmd(
             )
 
     build_container = (
-        build_container_override
-        if build_container_override
-        else get_build_container(board=board, variant=variant)
+        build_container_override if build_container_override else get_build_container(board=board, variant=variant)
     )
 
     variant_param = "BOARD_VARIANT" if board.physical_board else "VARIANT"
     variant_cmd = "" if variant is None else f" {variant_param}={variant}"
+
+    ci_environment_cmd = ""
+    ci_setup_cmd = ""
+    if port.name == "webassembly":
+        ci_setup_cmd = "source tools/ci.sh; ci_webassembly_setup;"
+        ci_environment_cmd = 'source "emsdk/emsdk_env.sh";'
+    elif port.name == "windows":
+        extra_args = ["CROSS_COMPILE=i686-w64-mingw32-"] + extra_args
 
     args = " " + " ".join(extra_args)
 
@@ -100,6 +107,8 @@ def docker_build_cmd(
         # Don't need to build mpy_cross or update submodules
         make_mpy_cross_cmd = ""
         update_submodules_cmd = ""
+        ci_environment_cmd = ""
+        ci_setup_cmd = ""
 
     home = os.environ["HOME"]
     mpy_dir = str(port.directory_repo)
@@ -117,6 +126,8 @@ def docker_build_cmd(
         f"{build_container} "
         f'bash -c "'
         f"git config --global --add safe.directory '*' 2> /dev/null;"
+        f'{ci_setup_cmd}'
+        f'{ci_environment_cmd}'
         f'{make_mpy_cross_cmd}'
         f'{update_submodules_cmd}'
         f'make -j {nprocs} -C ports/{port.name} BOARD={board.name}{variant_cmd}{args}"'
