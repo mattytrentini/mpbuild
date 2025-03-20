@@ -4,44 +4,19 @@ from typing_extensions import Annotated
 import typer
 
 from . import __app_name__, __version__, OutputFormat
-from .build import build_board, clean_board
+from .build import build_board, clean_board, BUILD_CONTAINERS
 from .list_boards import print_boards
 from .check_images import check_images
-from .completions import list_ports, list_boards, list_variants_for_board
+from .completions import complete_port, complete_board_variant
 
 app = typer.Typer(chain=True, context_settings={"help_option_names": ["-h", "--help"]})
 
 
-def _complete(words: list[str], incomplete: str):
-    completion = []
-    for name in words:
-        if name.startswith(incomplete):
-            completion.append(name)
-    return completion
-
-
-def _complete_board(incomplete: str):
-    return _complete(list_boards(), incomplete)
-
-
-def _complete_variant(ctx: typer.Context, incomplete: str):
-    board = ctx.params.get("board") or []
-    return _complete(list_variants_for_board(board), incomplete)
-
-
-def _complete_port(incomplete: str):
-    return _complete(list_ports(), incomplete)
-
-
 @app.command()
 def build(
-    board: Annotated[
-        str, typer.Argument(help="Board name", autocompletion=_complete_board)
+    board_variant: Annotated[
+        str, typer.Argument(help="Board name or Board-Variant", autocompletion=complete_board_variant)
     ],
-    variant: Annotated[
-        Optional[str],
-        typer.Argument(help="Board variant", autocompletion=_complete_variant),
-    ] = None,
     extra_args: Annotated[
         Optional[List[str]], typer.Argument(help="additional arguments to pass to make")
     ] = None,
@@ -53,25 +28,38 @@ def build(
     """
     Build a MicroPython board.
     """
-    if variant == "":
+    # Parse the board and variant from the combined format
+    if "-" in board_variant:
+        board, variant = board_variant.split("-", 1)
+    else:
+        board = board_variant
         variant = None
     build_board(board, variant, extra_args or [], build_container)
 
 
 @app.command()
 def clean(
-    board: str, variant: Annotated[Optional[str], typer.Argument()] = None
+    board_variant: Annotated[
+        str, typer.Argument(help="Board name or Board-Variant", autocompletion=complete_board_variant)
+    ]
 ) -> None:
     """
     Clean a MicroPython board.
     """
+    # Parse the board and variant from the combined format
+    if "-" in board_variant:
+        board, variant = board_variant.split("-", 1)
+    else:
+        board = board_variant
+        variant = None
+    
     clean_board(board, variant)
 
 
 @app.command("list")
 def list_boards_and_variants(
     port: Annotated[
-        Optional[str], typer.Argument(help="Port name", autocompletion=_complete_port)
+        Optional[str], typer.Argument(help="Port name", autocompletion=complete_port)
     ] = None,
     fmt: Annotated[
         OutputFormat,

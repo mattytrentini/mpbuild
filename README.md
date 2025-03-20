@@ -33,13 +33,13 @@ Build MicroPython firmware with ease!
 Build a board, with optional variant:
 
 ```bash
-mpbuild build BOARD [VARIANT]
+mpbuild build BOARD[-VARIANT]
 ```
 
 Remove build artifacts:
 
 ```bash
-mpbuild clean BOARD [VARIANT]
+mpbuild clean BOARD[-VARIANT]
 ```
 
 List the available boards, optionally filter by the port name.
