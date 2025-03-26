@@ -6,7 +6,7 @@ import typer
 from . import __app_name__, __version__, OutputFormat
 from .build import build_board, clean_board
 from .list_boards import print_boards
-from .check_images import check_images
+from .check_images import check_boards
 from .completions import list_ports, list_boards, list_variants_for_board
 
 app = typer.Typer(chain=True, context_settings={"help_option_names": ["-h", "--help"]})
@@ -86,14 +86,25 @@ def list_boards_and_variants(
     print_boards(port, fmt)
 
 
-@app.command("check_images")
+@app.command("check_boards")
+def board_check(
+    verbose: Annotated[bool, typer.Option(help="More verbose output")] = False,
+) -> None:
+    """
+    Check boards for issues with board.json files and images
+    """
+    check_boards(verbose)
+
+
+# Keep old command for backwards compatibility
+@app.command("check_images", hidden=True)
 def image_check(
     verbose: Annotated[bool, typer.Option(help="More verbose output")] = False,
 ) -> None:
     """
-    Check images
+    Check images (deprecated, use check_boards instead)
     """
-    check_images(verbose)
+    check_boards(verbose)
 
 
 def _version_callback(value: bool) -> None:

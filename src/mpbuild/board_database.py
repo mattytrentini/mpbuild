@@ -111,11 +111,11 @@ class Board:
             name=filename_json.parent.name,
             variants=[],
             url=board_json.get("url", "http://micropython.org"),
-            mcu=board_json["mcu"],
-            product=board_json["product"],
-            vendor=board_json["vendor"],
-            images=board_json["images"],
-            deploy=board_json["deploy"],
+            mcu=board_json.get("mcu", ""),
+            product=board_json.get("product", ""),
+            vendor=board_json.get("vendor", ""),
+            images=board_json.get("images", []),
+            deploy=board_json.get("deploy", []),
             physical_board=True,
             port=port,
         )
@@ -256,7 +256,9 @@ class Database:
                 port=port,
             )
             port.boards = {special_port_name: board}
-            board.variants = [Variant(name=v, text="", board=board) for v in variant_names]
+            board.variants = [
+                Variant(name=v, text="", board=board) for v in variant_names
+            ]
             self.ports[special_port_name] = port
             self.boards[board.name] = board
 
@@ -269,3 +271,32 @@ class Database:
             raise MpbuildMpyDirectoryException(
                 f"Directory does not point to the top of a micropython repo: {directory}"
             )
+
+    @staticmethod
+    def check_board_json(
+        board_json: dict, board_name: str, port_name: str
+    ) -> list[str]:
+        """
+        Checks a board.json file for missing or invalid keys.
+        Returns a list of issues found.
+        """
+        issues = []
+        required_keys = ["mcu", "product", "vendor", "images", "deploy"]
+
+        for key in required_keys:
+            if key not in board_json:
+                issues.append(f"{port_name}/{board_name}: Missing required key '{key}'")
+
+        if "url" not in board_json:
+            issues.append(f"{port_name}/{board_name}: Missing URL key")
+
+        if "variants" in board_json and not isinstance(board_json["variants"], dict):
+            issues.append(f"{port_name}/{board_name}: 'variants' is not a dictionary")
+
+        if "images" in board_json and not isinstance(board_json["images"], list):
+            issues.append(f"{port_name}/{board_name}: 'images' is not a list")
+
+        if "deploy" in board_json and not isinstance(board_json["deploy"], list):
+            issues.append(f"{port_name}/{board_name}: 'deploy' is not a list")
+
+        return issues
