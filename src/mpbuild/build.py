@@ -113,7 +113,7 @@ def docker_build_cmd(
         f"--net=host --privileged "             # provides access to USB for deploy
         f"-v {mpy_dir}:{mpy_dir} -w {mpy_dir} " # mount micropython dir with same path so elf/map paths match host
         f"--user {uid}:{gid} "                  # match running user id so generated files aren't owned by root
-        f"-v {home}:{home} -e HOME={home} "     # when changing user id to one not present in container this ensures home is writable
+        f"-e HOME=/tmp "                        # when changing user id to one not present in container this ensures home is writable
         f"{build_container} "
         f'bash -c "'
         f"git config --global --add safe.directory '*' 2> /dev/null;"
