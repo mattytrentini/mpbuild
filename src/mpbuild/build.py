@@ -20,8 +20,8 @@ BUILD_CONTAINERS = {
     "mimxrt": ARM_BUILD_CONTAINER,
     "renesas-ra": ARM_BUILD_CONTAINER,
     "samd": ARM_BUILD_CONTAINER,
-    "esp32": "espressif/idf:v5.2.2",
     "psoc6": "ifxmakers/mpy-mtb-ci",
+    "esp32": "espressif/idf:v5.4.1",
     "esp8266": "larsks/esp-open-sdk",
     "unix": "gcc:12-bookworm",  # Special, doesn't have boards
 }
