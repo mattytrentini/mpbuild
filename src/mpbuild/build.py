@@ -4,6 +4,8 @@ from typing import Optional, List
 from pathlib import Path
 import multiprocessing
 import subprocess
+import sys
+import glob
 
 from rich import print
 from rich.panel import Panel
@@ -103,19 +105,28 @@ def docker_build_cmd(
         make_mpy_cross_cmd = ""
         update_submodules_cmd = ""
 
-    home = os.environ["HOME"]
     mpy_dir = str(port.directory_repo)
+
+    # Dynamically find all ttyACM and ttyUSB devices
+    tty_devices = []
+    for pattern in ["/dev/ttyACM*", "/dev/ttyUSB*"]:
+        tty_devices.extend(glob.glob(pattern))
+
+    # Build device flags
+    device_flags = ""
+    if os.path.exists("/dev/bus/usb/") and os.listdir("/dev/bus/usb/"):
+        device_flags += "--device /dev/bus/usb/ "  # USB access
+    for device in tty_devices:
+        device_flags += f"--device {device} "
 
     # fmt: off
     build_cmd = (
         f"docker run --rm "
         f"{'-it ' if docker_interactive else ''}"
-        f"-v /sys/bus:/sys/bus "                # provides access to USB for deploy
-        f"-v /dev:/dev "                        # provides access to USB for deploy
-        f"--net=host --privileged "             # provides access to USB for deploy
+        f"{device_flags}"                       # provides access to USB and serial devices for deploy
         f"-v {mpy_dir}:{mpy_dir} -w {mpy_dir} " # mount micropython dir with same path so elf/map paths match host
         f"--user {uid}:{gid} "                  # match running user id so generated files aren't owned by root
-        f"-v {home}:{home} -e HOME={home} "     # when changing user id to one not present in container this ensures home is writable
+        f"-e HOME=/tmp "                        # set HOME to /tmp for container
         f"{build_container} "
         f'bash -c "'
         f"git config --global --add safe.directory '*' 2> /dev/null;"
@@ -168,6 +179,7 @@ def build_board(
         extra_args=extra_args,
         do_clean=do_clean,
         build_container_override=build_container_override,
+        docker_interactive=sys.stdin.isatty(),
     )
 
     title = "Build" if do_clean else "Clean"
