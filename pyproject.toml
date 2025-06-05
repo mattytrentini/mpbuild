@@ -1,6 +1,6 @@
 [project]
 name = "mpbuild"
-version = "0.8"
+version = "0.9"
 description = "Build MicroPython firmware with ease!"
 authors = [
     { name = "Matt Trentini", email = "matt.trentini@gmail.com" }
@@ -10,7 +10,7 @@ dependencies = [
     "rich>=13.7.1",
 ]
 readme = "README.md"
-requires-python = ">= 3.9"
+requires-python = ">= 3.12"
 
 [project.scripts]
 mpbuild = "mpbuild.__main__:main"
