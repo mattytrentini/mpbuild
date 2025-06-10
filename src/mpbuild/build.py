@@ -182,7 +182,7 @@ def build_board(
         docker_interactive=sys.stdin.isatty(),
     )
 
-    title = "Build" if do_clean else "Clean"
+    title = "Clean" if do_clean else "Build"
     title += f" {port}/{board}" + (f" ({variant})" if variant else "")
     print(Panel(build_cmd, title=title, title_align="left", padding=1))
 
