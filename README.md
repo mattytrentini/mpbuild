@@ -74,6 +74,20 @@ mpbuild.build("RPI_PICO")
 mpbuild.list()
 ```
 
+## Testing
+
+Run the test suite with pytest:
+
+```bash
+pytest
+```
+
+Run tests with coverage report:
+
+```bash
+pytest --cov=mpbuild --cov-report=term-missing
+```
+
 ## Installation
 
 ```bash
