@@ -36,8 +36,13 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
+from functools import cached_property
 from glob import glob
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .list_pins import Pin
 
 
 class MpbuildMpyDirectoryException(Exception):
@@ -164,6 +169,17 @@ class Board:
         )
 
         return None
+
+    @cached_property
+    def pins(self) -> list[Pin]:
+        """
+        Returns the list of pins for this board from pins.csv.
+        Returns empty list if no pins.csv file exists.
+        """
+        from .list_pins import parse_pins_csv
+
+        pins_file = self.directory / "pins.csv"
+        return parse_pins_csv(pins_file)
 
 
 @dataclass(order=True)

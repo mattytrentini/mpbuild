@@ -6,6 +6,7 @@ import typer
 from . import __app_name__, __version__, OutputFormat
 from .build import build_board, clean_board
 from .list_boards import print_boards
+from .list_pins import print_pins
 from .check_images import check_boards
 from .completions import list_ports, list_boards, list_variants_for_board
 
@@ -84,6 +85,27 @@ def list_boards_and_variants(
     List available boards.
     """
     print_boards(port, fmt)
+
+
+@app.command("pins")
+def list_pins_command(
+    board: Annotated[
+        Optional[str], typer.Argument(help="Board name", autocompletion=_complete_board)
+    ] = None,
+    port: Annotated[
+        Optional[str], typer.Argument(help="Port name", autocompletion=_complete_port)
+    ] = None,
+    fmt: Annotated[
+        OutputFormat,
+        typer.Option(
+            "--format", case_sensitive=False, help="Configure the output format"
+        ),
+    ] = OutputFormat.rich,
+) -> None:
+    """
+    List pins for boards.
+    """
+    print_pins(board, port, fmt)
 
 
 @app.command("check_boards")
