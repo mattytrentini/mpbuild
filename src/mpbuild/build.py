@@ -118,13 +118,18 @@ def docker_build_cmd(
         device_flags += "--device /dev/bus/usb/ "  # USB access
     for device in tty_devices:
         device_flags += f"--device {device} "
+     
+    user_module_volume=""
+    if " FROZEN_MANIFEST=" in  args:
+        manifest = list(filter(lambda x: x.startswith("FROZEN_MANIFEST=") , extra_args))[0] .split("=")[-1]
+        user_module_volume =  f"-v {Path(manifest).parent}:{Path(manifest).parent}"
 
     # fmt: off
     build_cmd = (
         f"docker run --rm "
         f"{'-it ' if docker_interactive else ''}"
         f"{device_flags}"                       # provides access to USB and serial devices for deploy
-        f"-v {mpy_dir}:{mpy_dir} -w {mpy_dir} " # mount micropython dir with same path so elf/map paths match host
+        f"-v {mpy_dir}:{mpy_dir} {user_module_volume} -w {mpy_dir} " # mount micropython dir with same path so elf/map paths match host
         f"--user {uid}:{gid} "                  # match running user id so generated files aren't owned by root
         f"-e HOME=/tmp "                        # set HOME to /tmp for container
         f"{build_container} "
