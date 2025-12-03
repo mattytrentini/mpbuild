@@ -14,6 +14,81 @@ from rich.markdown import Markdown
 from . import board_database, find_mpy_root
 from .board_database import Board
 
+
+def get_git_directory(mpy_dir: Path) -> Path | None:
+    """
+    Get the actual .git directory path, handling both regular repos and worktrees.
+
+    Args:
+        mpy_dir: Path to the MicroPython repository root
+
+    Returns:
+        Path to the actual .git directory, or None if not found
+    """
+    git_path = mpy_dir / ".git"
+
+    if not git_path.exists():
+        return None
+
+    if git_path.is_dir():
+        # Regular git repository
+        return git_path
+    elif git_path.is_file():
+        # Git worktree - .git file contains path to actual .git directory
+        try:
+            git_file_content = git_path.read_text().strip()
+            if git_file_content.startswith("gitdir: "):
+                gitdir_path = git_file_content[8:]  # Remove "gitdir: " prefix
+                return Path(gitdir_path).resolve()
+        except (OSError, ValueError):
+            pass
+
+    return None
+
+
+def get_main_git_directory(mpy_dir: Path) -> Path | None:
+    """
+    Get the main .git directory for repos and worktrees.
+
+    For regular repos, returns None (no additional mount needed).
+    For worktrees, returns the common git directory that needs to be mounted.
+
+    Args:
+        mpy_dir: Path to the MicroPython repository root
+
+    Returns:
+        Path to the main .git directory, or None if not needed
+
+    Raises:
+        RuntimeError: If git command is not available
+    """
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--git-common-dir"],
+            cwd=mpy_dir,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode == 0:
+            git_common_dir = Path(result.stdout.strip()).resolve()
+            if git_common_dir.exists() and git_common_dir.is_dir():
+                # If the git directory is already within mpy_dir, no mount needed
+                if git_common_dir.is_relative_to(mpy_dir):
+                    return None
+                return git_common_dir
+    except FileNotFoundError:
+        raise RuntimeError(
+            "Git command not found. Please install git to build with mpbuild."
+        )
+    except subprocess.TimeoutExpired:
+        raise RuntimeError(
+            "Git command timed out. Check git installation and repository state."
+        )
+
+    return None
+
+
 ARM_BUILD_CONTAINER = "micropython/build-micropython-arm"
 BUILD_CONTAINERS = {
     "stm32": ARM_BUILD_CONTAINER,
@@ -107,6 +182,12 @@ def docker_build_cmd(
 
     mpy_dir = str(port.directory_repo)
 
+    # Handle git worktrees by mounting the main .git directory
+    git_volume_mount = ""
+    main_git_dir = get_main_git_directory(Path(mpy_dir))
+    if main_git_dir:
+        git_volume_mount = f"-v {main_git_dir}:{main_git_dir} "
+
     # Dynamically find all ttyACM and ttyUSB devices
     tty_devices = []
     for pattern in ["/dev/ttyACM*", "/dev/ttyUSB*"]:
@@ -125,6 +206,7 @@ def docker_build_cmd(
         f"{'-it ' if docker_interactive else ''}"
         f"{device_flags}"                       # provides access to USB and serial devices for deploy
         f"-v {mpy_dir}:{mpy_dir} -w {mpy_dir} " # mount micropython dir with same path so elf/map paths match host
+        f"{git_volume_mount}"                   # mount actual .git directory for worktrees
         f"--user {uid}:{gid} "                  # match running user id so generated files aren't owned by root
         f"-e HOME=/tmp "                        # set HOME to /tmp for container
         f"{build_container} "
