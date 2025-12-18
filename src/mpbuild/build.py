@@ -3,6 +3,8 @@ import os
 import subprocess
 from pathlib import Path
 from typing import List, Optional
+import sys
+import glob
 
 from rich import print
 from rich.markdown import Markdown
@@ -19,7 +21,8 @@ BUILD_CONTAINERS = {
     "mimxrt": ARM_BUILD_CONTAINER,
     "renesas-ra": ARM_BUILD_CONTAINER,
     "samd": ARM_BUILD_CONTAINER,
-    "esp32": "espressif/idf:v5.2.2",
+    "psoc6": "ifxmakers/mpy-mtb-ci",
+    "esp32": "espressif/idf:v5.4.2",
     "esp8266": "larsks/esp-open-sdk",
     "unix": "gcc:12-bookworm",  # Special, doesn't have boards
     "webassembly": ARM_BUILD_CONTAINER,  # installs emsdk on first build
@@ -97,8 +100,9 @@ def docker_build_cmd(
     args = " " + " ".join(extra_args)
 
     make_mpy_cross_cmd = "make -C mpy-cross && "
-    update_submodules_cmd = f"make -C ports/{port.name} submodules && "
-
+    update_submodules_cmd = (
+        f"make -C ports/{port.name} BOARD={board.name}{variant_cmd} submodules && "
+    )
     uid, gid = os.getuid(), os.getgid()
 
     if do_clean:
@@ -110,19 +114,28 @@ def docker_build_cmd(
         ci_environment_cmd = ""
         ci_setup_cmd = ""
 
-    home = os.environ["HOME"]
     mpy_dir = str(port.directory_repo)
+
+    # Dynamically find all ttyACM and ttyUSB devices
+    tty_devices = []
+    for pattern in ["/dev/ttyACM*", "/dev/ttyUSB*"]:
+        tty_devices.extend(glob.glob(pattern))
+
+    # Build device flags
+    device_flags = ""
+    if os.path.exists("/dev/bus/usb/") and os.listdir("/dev/bus/usb/"):
+        device_flags += "--device /dev/bus/usb/ "  # USB access
+    for device in tty_devices:
+        device_flags += f"--device {device} "
 
     # fmt: off
     build_cmd = (
         f"docker run --rm "
         f"{'-it ' if docker_interactive else ''}"
-        f"-v /sys/bus:/sys/bus "                # provides access to USB for deploy
-        f"-v /dev:/dev "                        # provides access to USB for deploy
-        f"--net=host --privileged "             # provides access to USB for deploy
+        f"{device_flags}"                       # provides access to USB and serial devices for deploy
         f"-v {mpy_dir}:{mpy_dir} -w {mpy_dir} " # mount micropython dir with same path so elf/map paths match host
         f"--user {uid}:{gid} "                  # match running user id so generated files aren't owned by root
-        f"-v {home}:{home} -e HOME={home} "     # when changing user id to one not present in container this ensures home is writable
+        f"-e HOME=/tmp "                        # set HOME to /tmp for container
         f"{build_container} "
         f'bash -c "'
         f"git config --global --add safe.directory '*' 2> /dev/null;"
@@ -177,9 +190,10 @@ def build_board(
         extra_args=extra_args,
         do_clean=do_clean,
         build_container_override=build_container_override,
+        docker_interactive=sys.stdin.isatty(),
     )
 
-    title = "Build" if do_clean else "Clean"
+    title = "Clean" if do_clean else "Build"
     title += f" {port}/{board}" + (f" ({variant})" if variant else "")
     print(Panel(build_cmd, title=title, title_align="left", padding=1))
 
