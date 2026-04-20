@@ -3,6 +3,7 @@ from typing import Optional, List
 
 from pathlib import Path
 import multiprocessing
+import re
 import subprocess
 import sys
 import glob
@@ -15,6 +16,8 @@ from . import board_database, find_mpy_root
 from .board_database import Board
 
 ARM_BUILD_CONTAINER = "micropython/build-micropython-arm"
+ESP_IDF_CONTAINER = "espressif/idf"
+ESP_IDF_FALLBACK_VERSION = "v5.4.2"
 BUILD_CONTAINERS = {
     "stm32": ARM_BUILD_CONTAINER,
     "rp2": ARM_BUILD_CONTAINER,
@@ -23,10 +26,105 @@ BUILD_CONTAINERS = {
     "renesas-ra": ARM_BUILD_CONTAINER,
     "samd": ARM_BUILD_CONTAINER,
     "psoc6": "ifxmakers/mpy-mtb-ci",
-    "esp32": "espressif/idf:v5.4.2",
+    "esp32": f"{ESP_IDF_CONTAINER}:{ESP_IDF_FALLBACK_VERSION}",
     "esp8266": "larsks/esp-open-sdk",
     "unix": "gcc:12-bookworm",  # Special, doesn't have boards
 }
+
+
+def _detect_idf_version_from_lockfile(mpy_dir: Path, mcu: str) -> str | None:
+    """
+    Detect the ESP-IDF version from the MicroPython lockfiles (tier 1).
+
+    Each ESP32 chip type (esp32, esp32s2, esp32s3, esp32c3, etc.) has its own
+    lockfile at ``ports/esp32/lockfiles/dependencies.lock.<mcu>`` that specifies
+    the exact IDF version used for that target.
+
+    Args:
+        mpy_dir: Path to the MicroPython repository root.
+        mcu: The MCU/chip target name from board.json (e.g., "esp32", "esp32s3").
+
+    Returns:
+        The ESP-IDF version string (e.g., "v5.5.1"), or None if detection fails.
+    """
+    lockfile_path = (
+        mpy_dir / "ports" / "esp32" / "lockfiles" / f"dependencies.lock.{mcu}"
+    )
+    if not lockfile_path.is_file():
+        return None
+
+    try:
+        content = lockfile_path.read_text()
+    except OSError:
+        return None
+
+    # Parse the idf dependency version from the lockfile YAML.
+    # The structure is:
+    #   dependencies:
+    #     idf:
+    #       source:
+    #         type: idf
+    #       version: 5.5.1
+    # Match "idf:" at the top-level dependency indent, then find its "version:" field.
+    match = re.search(
+        r"^  idf:\n(?:    .*\n)*?    version:\s*([\d.]+)", content, re.MULTILINE
+    )
+    if match:
+        return f"v{match.group(1)}"
+
+    return None
+
+
+def _detect_idf_version_from_ci_workflow(mpy_dir: Path) -> str | None:
+    """
+    Detect the recommended ESP-IDF version from the CI workflow file (tier 2).
+
+    Parses ``.github/workflows/ports_esp32.yml`` to find the ``IDF_NEWEST_VER``
+    value, which is the newest supported ESP-IDF version.
+
+    Args:
+        mpy_dir: Path to the MicroPython repository root.
+
+    Returns:
+        The ESP-IDF version string (e.g., "v5.5.1"), or None if detection fails.
+    """
+    workflow_path = mpy_dir / ".github" / "workflows" / "ports_esp32.yml"
+    if not workflow_path.is_file():
+        return None
+
+    try:
+        content = workflow_path.read_text()
+    except OSError:
+        return None
+
+    # Match the IDF_NEWEST_VER env variable in the workflow YAML
+    # e.g.: IDF_NEWEST_VER: &newest "v5.5.1"
+    # or:   IDF_NEWEST_VER: "v5.5.1"
+    match = re.search(r"IDF_NEWEST_VER:\s*(?:&\w+\s+)?([\"']?)(v[\d.]+)\1", content)
+    if match:
+        return match.group(2)
+
+    return None
+
+
+def detect_idf_version(mpy_dir: Path, mcu: str) -> str | None:
+    """
+    Detect the ESP-IDF version using a three-tier fallback strategy:
+
+    1. **Lockfile** — per-chip-type lockfile in ``ports/esp32/lockfiles/``
+    2. **CI workflow** — ``IDF_NEWEST_VER`` from ``.github/workflows/ports_esp32.yml``
+    3. Returns ``None`` so callers can fall back to a hardcoded default.
+
+    Args:
+        mpy_dir: Path to the MicroPython repository root.
+        mcu: The MCU/chip target name from board.json (e.g., "esp32", "esp32s3").
+
+    Returns:
+        The ESP-IDF version string (e.g., "v5.5.1"), or None if all detection fails.
+    """
+    return _detect_idf_version_from_lockfile(
+        mpy_dir, mcu
+    ) or _detect_idf_version_from_ci_workflow(mpy_dir)
 
 
 class MpbuildNotSupportedException(Exception):
@@ -37,8 +135,16 @@ def get_build_container(board: Board, variant: Optional[str] = None) -> str:
     """
     Returns the container to be used for this board/variant.
 
+    For the esp32 port, the ESP-IDF version is auto-detected using a
+    three-tier fallback:
+
+    1. Lockfile (``ports/esp32/lockfiles/dependencies.lock.<mcu>``) — per chip type
+    2. CI workflow (``IDF_NEWEST_VER`` in ``.github/workflows/ports_esp32.yml``)
+    3. Hardcoded fallback version
+
     Example: board="RPI_PICO" => "micropython/build-micropython-arm"
     Example: board="RPI_PICO", variant="RISCV" => "micropython/build-micropython-rp2350riscv"
+    Example: board="ESP32_GENERIC" => "espressif/idf:v5.5.1" (auto-detected)
     """
     port = board.port
 
@@ -50,6 +156,12 @@ def get_build_container(board: Board, variant: Optional[str] = None) -> str:
 
         # RP2 requires a recent version of gcc
         return "micropython/build-micropython-arm:bookworm"
+
+    if port.name == "esp32":
+        idf_version = detect_idf_version(port.directory_repo, board.mcu)
+        if idf_version:
+            return f"{ESP_IDF_CONTAINER}:{idf_version}"
+        return f"{ESP_IDF_CONTAINER}:{ESP_IDF_FALLBACK_VERSION}"
 
     try:
         return BUILD_CONTAINERS[port.name]
