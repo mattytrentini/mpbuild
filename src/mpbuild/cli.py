@@ -1,5 +1,4 @@
-from typing import Optional, List
-from typing_extensions import Annotated
+from typing import Annotated, List, Optional
 
 import typer
 
