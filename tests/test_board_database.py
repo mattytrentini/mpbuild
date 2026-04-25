@@ -256,8 +256,16 @@ class TestBoardProperties:
         """A board pointing at a non-existent dir raises ValueError."""
         port = Port(name="stm32", directory=mpy_root / "ports" / "stm32")
         board = Board(
-            name="GHOST", variants=[], url="", mcu="", product="", vendor="",
-            images=[], deploy=[], physical_board=True, port=port,
+            name="GHOST",
+            variants=[],
+            url="",
+            mcu="",
+            product="",
+            vendor="",
+            images=[],
+            deploy=[],
+            physical_board=True,
+            port=port,
         )
         with pytest.raises(ValueError, match="Directory does not exist"):
             _ = board.directory
@@ -278,7 +286,9 @@ class TestBoardProperties:
     def test_find_variant_hit(self, mpy_root, make_board):
         """find_variant returns the matching Variant."""
         make_board(
-            "stm32", "PYBV11", mcu="stm32f4",
+            "stm32",
+            "PYBV11",
+            mcu="stm32f4",
             variants={"DP": "Double-precision float", "THREAD": "Threading"},
         )
         db = Database(mpy_root)

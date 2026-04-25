@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from mpbuild.board_database import Board, Database, Port
+from mpbuild.board_database import Database
 from mpbuild.build import (
     ARM_BUILD_CONTAINER,
     ESP_IDF_CONTAINER,
@@ -12,7 +12,6 @@ from mpbuild.build import (
     MpbuildNotSupportedException,
     get_build_container,
 )
-
 
 # Sample lockfile content reused from the IDF detection tests.
 LOCKFILE_ESP32 = """\
@@ -42,9 +41,7 @@ class TestSimplePorts:
             ("esp8266", "larsks/esp-open-sdk"),
         ],
     )
-    def test_physical_port_maps_to_container(
-        self, mpy_root, make_board, port_name, expected
-    ):
+    def test_physical_port_maps_to_container(self, mpy_root, make_board, port_name, expected):
         """Each non-special port maps directly to its container in BUILD_CONTAINERS."""
         make_board(port_name, "BOARD_X", mcu="dummy")
         db = Database(mpy_root)
@@ -79,7 +76,8 @@ class TestRp2:
     def test_riscv_variant_uses_dedicated_image(self, mpy_root, make_board):
         """The RISCV variant (rp2350) uses its own dedicated container."""
         make_board(
-            "rp2", "RPI_PICO2",
+            "rp2",
+            "RPI_PICO2",
             mcu="rp2350",
             variants={"RISCV": "RISC-V core"},
         )
@@ -92,7 +90,8 @@ class TestRp2:
     def test_non_riscv_variant_uses_default(self, mpy_root, make_board):
         """Other rp2 variants still get the regular arm:bookworm container."""
         make_board(
-            "rp2", "WEACTSTUDIO",
+            "rp2",
+            "WEACTSTUDIO",
             mcu="rp2040",
             variants={"FLASH_2M": "2 MB flash"},
         )
@@ -112,10 +111,7 @@ class TestEsp32:
         make_board("esp32", "ESP32_GENERIC", mcu="esp32")
         make_lockfile("esp32", LOCKFILE_ESP32)
         db = Database(mpy_root)
-        assert (
-            get_build_container(db.boards["ESP32_GENERIC"])
-            == f"{ESP_IDF_CONTAINER}:v5.5.1"
-        )
+        assert get_build_container(db.boards["ESP32_GENERIC"]) == f"{ESP_IDF_CONTAINER}:v5.5.1"
 
     def test_falls_back_when_detection_fails(self, mpy_root, make_board):
         """Without a lockfile or workflow, esp32 uses the hardcoded fallback version."""
@@ -134,7 +130,4 @@ class TestEsp32:
             "dependencies:\n  idf:\n    source:\n      type: idf\n    version: 5.4.2\n",
         )
         db = Database(mpy_root)
-        assert (
-            get_build_container(db.boards["ESP32_GENERIC_S3"])
-            == f"{ESP_IDF_CONTAINER}:v5.4.2"
-        )
+        assert get_build_container(db.boards["ESP32_GENERIC_S3"]) == f"{ESP_IDF_CONTAINER}:v5.4.2"

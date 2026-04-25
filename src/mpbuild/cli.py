@@ -1,12 +1,12 @@
-from typing import Annotated, List, Optional
+from typing import Annotated
 
 import typer
 
-from . import __app_name__, __version__, OutputFormat
+from . import OutputFormat, __app_name__, __version__
 from .build import build_board, clean_board
-from .list_boards import print_boards
 from .check_images import check_boards
-from .completions import list_ports, list_boards, list_variants_for_board
+from .completions import list_boards, list_ports, list_variants_for_board
+from .list_boards import print_boards
 
 app = typer.Typer(chain=True, context_settings={"help_option_names": ["-h", "--help"]})
 
@@ -34,18 +34,16 @@ def _complete_port(incomplete: str):
 
 @app.command()
 def build(
-    board: Annotated[
-        str, typer.Argument(help="Board name", autocompletion=_complete_board)
-    ],
+    board: Annotated[str, typer.Argument(help="Board name", autocompletion=_complete_board)],
     variant: Annotated[
-        Optional[str],
+        str | None,
         typer.Argument(help="Board variant", autocompletion=_complete_variant),
     ] = None,
     extra_args: Annotated[
-        Optional[List[str]], typer.Argument(help="additional arguments to pass to make")
+        list[str] | None, typer.Argument(help="additional arguments to pass to make")
     ] = None,
     build_container: Annotated[
-        Optional[str],
+        str | None,
         typer.Option(help="Override the default build container"),
     ] = None,
 ) -> None:
@@ -58,9 +56,7 @@ def build(
 
 
 @app.command()
-def clean(
-    board: str, variant: Annotated[Optional[str], typer.Argument()] = None
-) -> None:
+def clean(board: str, variant: Annotated[str | None, typer.Argument()] = None) -> None:
     """
     Clean a MicroPython board.
     """
@@ -70,13 +66,11 @@ def clean(
 @app.command("list")
 def list_boards_and_variants(
     port: Annotated[
-        Optional[str], typer.Argument(help="Port name", autocompletion=_complete_port)
+        str | None, typer.Argument(help="Port name", autocompletion=_complete_port)
     ] = None,
     fmt: Annotated[
         OutputFormat,
-        typer.Option(
-            "--format", case_sensitive=False, help="Configure the output format"
-        ),
+        typer.Option("--format", case_sensitive=False, help="Configure the output format"),
     ] = OutputFormat.rich,
 ) -> None:
     """
@@ -115,7 +109,7 @@ def _version_callback(value: bool) -> None:
 
 @app.callback()
 def main(
-    version: Optional[bool] = typer.Option(
+    version: bool | None = typer.Option(
         None,
         "--version",
         "-v",
