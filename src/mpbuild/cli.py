@@ -24,7 +24,9 @@ def _complete_board(incomplete: str):
 
 
 def _complete_variant(ctx: typer.Context, incomplete: str):
-    board = ctx.params.get("board") or []
+    board = ctx.params.get("board")
+    if not board:
+        return []
     return _complete(list_variants_for_board(board), incomplete)
 
 
