@@ -9,8 +9,8 @@ they need in their parameter list; pytest wires them up automatically.
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 import pytest
 

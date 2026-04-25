@@ -46,8 +46,10 @@ class TestBuild:
 
         def fake(board, variant, extra_args, build_container):
             called.update(
-                board=board, variant=variant,
-                extra_args=extra_args, build_container=build_container,
+                board=board,
+                variant=variant,
+                extra_args=extra_args,
+                build_container=build_container,
             )
 
         monkeypatch.setattr("mpbuild.cli.build_board", fake)
@@ -96,9 +98,7 @@ class TestBuild:
             "mpbuild.cli.build_board",
             lambda b, v, e, c: called.update(c=c),
         )
-        result = runner.invoke(
-            app, ["build", "--build-container", "custom/image:tag", "PYBV11"]
-        )
+        result = runner.invoke(app, ["build", "--build-container", "custom/image:tag", "PYBV11"])
         assert result.exit_code == 0
         assert called["c"] == "custom/image:tag"
 

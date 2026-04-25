@@ -1,4 +1,4 @@
-from . import cli, __app_name__
+from . import __app_name__, cli
 
 
 def main():

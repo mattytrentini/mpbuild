@@ -70,7 +70,8 @@ class TestDockerBuildCmdVariants:
     def test_physical_board_uses_BOARD_VARIANT(self, mpy_root, make_board):
         """Physical boards pass the variant via BOARD_VARIANT=."""
         make_board(
-            "stm32", "PYBV11",
+            "stm32",
+            "PYBV11",
             mcu="stm32f4",
             variants={"DP_THREAD": "Double precision + Threads"},
         )
@@ -157,6 +158,7 @@ class TestDockerBuildCmdExtraArgs:
 class TestDockerBuildCmdDeviceFlags:
     def test_includes_tty_devices_when_present(self, mpy_root, make_board, monkeypatch):
         """Discovered tty devices are passed through as --device flags."""
+
         def fake_glob(pattern):
             if "ttyACM" in pattern:
                 return ["/dev/ttyACM0"]

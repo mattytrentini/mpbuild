@@ -1,16 +1,14 @@
-import os
-from typing import Optional, List
-
-from pathlib import Path
+import glob
 import multiprocessing
+import os
 import re
 import subprocess
 import sys
-import glob
+from pathlib import Path
 
 from rich import print
-from rich.panel import Panel
 from rich.markdown import Markdown
+from rich.panel import Panel
 
 from . import board_database, find_mpy_root
 from .board_database import Board
@@ -47,9 +45,7 @@ def _detect_idf_version_from_lockfile(mpy_dir: Path, mcu: str) -> str | None:
     Returns:
         The ESP-IDF version string (e.g., "v5.5.1"), or None if detection fails.
     """
-    lockfile_path = (
-        mpy_dir / "ports" / "esp32" / "lockfiles" / f"dependencies.lock.{mcu}"
-    )
+    lockfile_path = mpy_dir / "ports" / "esp32" / "lockfiles" / f"dependencies.lock.{mcu}"
     if not lockfile_path.is_file():
         return None
 
@@ -66,9 +62,7 @@ def _detect_idf_version_from_lockfile(mpy_dir: Path, mcu: str) -> str | None:
     #         type: idf
     #       version: 5.5.1
     # Match "idf:" at the top-level dependency indent, then find its "version:" field.
-    match = re.search(
-        r"^  idf:\n(?:    .*\n)*?    version:\s*([\d.]+)", content, re.MULTILINE
-    )
+    match = re.search(r"^  idf:\n(?:    .*\n)*?    version:\s*([\d.]+)", content, re.MULTILINE)
     if match:
         return f"v{match.group(1)}"
 
@@ -122,16 +116,16 @@ def detect_idf_version(mpy_dir: Path, mcu: str) -> str | None:
     Returns:
         The ESP-IDF version string (e.g., "v5.5.1"), or None if all detection fails.
     """
-    return _detect_idf_version_from_lockfile(
-        mpy_dir, mcu
-    ) or _detect_idf_version_from_ci_workflow(mpy_dir)
+    return _detect_idf_version_from_lockfile(mpy_dir, mcu) or _detect_idf_version_from_ci_workflow(
+        mpy_dir
+    )
 
 
 class MpbuildNotSupportedException(Exception):
     pass
 
 
-def get_build_container(board: Board, variant: Optional[str] = None) -> str:
+def get_build_container(board: Board, variant: str | None = None) -> str:
     """
     Returns the container to be used for this board/variant.
 
@@ -174,8 +168,8 @@ nprocs = multiprocessing.cpu_count()
 
 def docker_build_cmd(
     board: Board,
-    variant: Optional[str] = None,
-    extra_args: List[str] = [],
+    variant: str | None = None,
+    extra_args: list[str] | None = None,
     do_clean: bool = False,
     build_container_override: str | None = None,
     docker_interactive: bool = True,
@@ -183,6 +177,8 @@ def docker_build_cmd(
     """
     Returns the docker-command which will build the firmware.
     """
+    if extra_args is None:
+        extra_args = []
 
     port = board.port
 
@@ -190,7 +186,8 @@ def docker_build_cmd(
         v = board.find_variant(variant)
         if not v:
             raise ValueError(
-                f"Variant '{variant}' not found for board '{board.name}': Valid variants are: {[v.name for v in board.variants]}"
+                f"Variant '{variant}' not found for board '{board.name}': "
+                f"Valid variants are: {[v.name for v in board.variants]}"
             )
 
     build_container = (
@@ -231,31 +228,34 @@ def docker_build_cmd(
     for device in tty_devices:
         device_flags += f"--device {device} "
 
-    # fmt: off
+    # Build the docker run invocation. Each option, in order:
+    #   {device_flags}             USB and serial devices for deploy
+    #   -v <mpy>:<mpy> -w <mpy>    mount mpy dir at same path so elf/map paths match host
+    #   --user <uid>:<gid>         match host user id so generated files aren't owned by root
+    #   -e HOME=/tmp               set HOME to /tmp for the container
     build_cmd = (
         f"docker run --rm "
         f"{'-it ' if docker_interactive else ''}"
-        f"{device_flags}"                       # provides access to USB and serial devices for deploy
-        f"-v {mpy_dir}:{mpy_dir} -w {mpy_dir} " # mount micropython dir with same path so elf/map paths match host
-        f"--user {uid}:{gid} "                  # match running user id so generated files aren't owned by root
-        f"-e HOME=/tmp "                        # set HOME to /tmp for container
+        f"{device_flags}"
+        f"-v {mpy_dir}:{mpy_dir} -w {mpy_dir} "
+        f"--user {uid}:{gid} "
+        f"-e HOME=/tmp "
         f"{build_container} "
         f'bash -c "'
         f"git config --global --add safe.directory '*' 2> /dev/null;"
-        f'{make_mpy_cross_cmd}'
-        f'{update_submodules_cmd}'
+        f"{make_mpy_cross_cmd}"
+        f"{update_submodules_cmd}"
         f'make -j {nprocs} -C ports/{port.name} BOARD={board.name}{variant_cmd}{args}"'
     )
-    # fmt: on
 
     return build_cmd
 
 
 def build_board(
     board: str,
-    variant: Optional[str] = None,
-    extra_args: List[str] = [],
-    build_container_override: Optional[str] = None,
+    variant: str | None = None,
+    extra_args: list[str] | None = None,
+    build_container_override: str | None = None,
     mpy_dir: str | Path | None = None,
 ) -> None:
     """
@@ -263,6 +263,8 @@ def build_board(
 
     This command writes to stdout/stderr and may exit the program on failure.
     """
+    if extra_args is None:
+        extra_args = []
     mpy_dir, _ = find_mpy_root(mpy_dir)
     db = board_database(mpy_dir)
     mpy_dir = db.mpy_root_directory
@@ -318,8 +320,8 @@ def build_board(
 
 def clean_board(
     board: str,
-    variant: Optional[str] = None,
-    mpy_dir: Optional[str] = None,
+    variant: str | None = None,
+    mpy_dir: str | None = None,
 ) -> None:
     build_board(
         board=board,

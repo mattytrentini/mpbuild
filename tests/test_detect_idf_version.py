@@ -1,8 +1,8 @@
 """Tests for ESP-IDF version detection (three-tier fallback)."""
 
 from mpbuild.build import (
-    _detect_idf_version_from_lockfile,
     _detect_idf_version_from_ci_workflow,
+    _detect_idf_version_from_lockfile,
     detect_idf_version,
 )
 
@@ -62,9 +62,7 @@ target: esp32s3
 version: 2.0.0
 """
 
-CI_WORKFLOW = (
-    'env:\n  IDF_OLDEST_VER: &oldest "v5.3"\n  IDF_NEWEST_VER: &newest "v5.5.1"\n'
-)
+CI_WORKFLOW = 'env:\n  IDF_OLDEST_VER: &oldest "v5.3"\n  IDF_NEWEST_VER: &newest "v5.5.1"\n'
 
 
 # ===================================================================
@@ -156,9 +154,7 @@ class TestDetectIdfVersionFallback:
         make_workflow(CI_WORKFLOW)
         assert detect_idf_version(mpy_root, "esp32") == "v5.5.1"
 
-    def test_falls_back_to_ci_for_unknown_mcu(
-        self, mpy_root, make_lockfile, make_workflow
-    ):
+    def test_falls_back_to_ci_for_unknown_mcu(self, mpy_root, make_lockfile, make_workflow):
         """Lockfile exists for esp32, but not for esp32c6 → falls back to CI."""
         make_lockfile("esp32", LOCKFILE_ESP32)
         make_workflow('env:\n  IDF_NEWEST_VER: "v5.4.0"\n')
