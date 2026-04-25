@@ -18,6 +18,7 @@ Build MicroPython firmware with ease!
 - [Installation](#installation)
   - [Prerequisites](#prerequisites)
 - [Examples](#examples)
+- [Testing](#testing)
 - [Related links](#related-links)
 
 ## Usage
@@ -128,4 +129,26 @@ $ mpbuild list rp2
     ├── W5100S_EVB_PICO
     ├── W5500_EVB_PICO
     └── WEACTSTUDIO  FLASH_2M, FLASH_4M, FLASH_8M
+```
+
+## Testing
+
+The test suite uses [pytest](https://docs.pytest.org/). Dev dependencies are declared in the `dev` group of `pyproject.toml`.
+
+Install dev dependencies:
+
+```bash
+uv sync --group dev
+```
+
+Run the tests:
+
+```bash
+uv run pytest
+```
+
+Run with coverage:
+
+```bash
+uv run pytest --cov=mpbuild --cov-report=term-missing
 ```
