@@ -8,3 +8,9 @@ wheels/
 
 # venv
 .venv
+
+# test artifacts
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
