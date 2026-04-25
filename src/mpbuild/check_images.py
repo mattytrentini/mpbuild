@@ -10,7 +10,7 @@ from rich.table import Table
 from . import board_database
 
 
-def check_boards(verbose: bool = False, mpy_dir: str = None) -> None:
+def check_boards(verbose: bool = False, mpy_dir: str | None = None) -> None:
     db = board_database(mpy_dir)
     num_boards = len(db.boards)
 
@@ -109,6 +109,6 @@ def check_boards(verbose: bool = False, mpy_dir: str = None) -> None:
 
 
 # Backwards compatibility
-def check_images(verbose: bool = False, mpy_dir: str = None) -> None:
+def check_images(verbose: bool = False, mpy_dir: str | None = None) -> None:
     """Legacy function, redirects to check_boards"""
     check_boards(verbose, mpy_dir)

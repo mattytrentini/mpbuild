@@ -314,8 +314,9 @@ def build_board(
     #    >>> len(db.boards())
     #    169  # 3x boards are the 'special' boards without deployment instructions.
     if _board.deploy and "clean" not in extra_args and proc.returncode == 0:
-        if _board.deploy_filename.is_file():
-            print(Panel(Markdown(_board.deploy_filename.read_text())))
+        deploy_path = _board.deploy_filename
+        if deploy_path is not None and deploy_path.is_file():
+            print(Panel(Markdown(deploy_path.read_text())))
 
 
 def clean_board(
