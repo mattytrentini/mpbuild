@@ -1,16 +1,16 @@
-from . import board_database
 import json
-
-from urllib.request import Request, urlopen
 from urllib.error import HTTPError
+from urllib.request import Request, urlopen
 
-from rich.progress import Progress
 from rich import print
 from rich.panel import Panel
+from rich.progress import Progress
 from rich.table import Table
 
+from . import board_database
 
-def check_boards(verbose: bool = False, mpy_dir: str = None) -> None:
+
+def check_boards(verbose: bool = False, mpy_dir: str | None = None) -> None:
     db = board_database(mpy_dir)
     num_boards = len(db.boards)
 
@@ -20,9 +20,7 @@ def check_boards(verbose: bool = False, mpy_dir: str = None) -> None:
     image_too_large = []
     board_json_issues = []
 
-    base_url = (
-        r"https://raw.githubusercontent.com/micropython/micropython-media/main/boards"
-    )
+    base_url = r"https://raw.githubusercontent.com/micropython/micropython-media/main/boards"
 
     with Progress(transient=True) as progress:
         task1 = progress.add_task("[cyan]Checking boards...", total=num_boards)
@@ -37,11 +35,9 @@ def check_boards(verbose: bool = False, mpy_dir: str = None) -> None:
                         with open(json_path) as f:
                             board_json = json.load(f)
                             # Check for issues in board.json
-                            issues = db.check_board_json(
-                                board_json, _board.name, _board.port.name
-                            )
+                            issues = db.check_board_json(board_json, _board.name, _board.port.name)
                             board_json_issues.extend(issues)
-                except (json.JSONDecodeError, IOError) as e:
+                except (OSError, json.JSONDecodeError) as e:
                     board_json_issues.append(
                         f"{_board.port.name}/{_board.name}: Error reading board.json: {str(e)}"
                     )
@@ -84,20 +80,14 @@ def check_boards(verbose: bool = False, mpy_dir: str = None) -> None:
         ),
         Panel(
             "\n".join(
-                [
-                    f"[link={url}]{p}/[bright_white]{b}[/][/link]"
-                    for p, b, url in image_not_found
-                ]
+                [f"[link={url}]{p}/[bright_white]{b}[/][/link]" for p, b, url in image_not_found]
             ),
             title="Not found",
             subtitle="Image not in micropython-media",
         ),
         Panel(
             "\n".join(
-                [
-                    f"[link={url}]{p}/[bright_white]{b}[/][/link]"
-                    for p, b, url, s in image_too_large
-                ]
+                [f"[link={url}]{p}/[bright_white]{b}[/][/link]" for p, b, url, s in image_too_large]
             ),
             title="Too large",
             subtitle="Image > 500KB",
@@ -119,6 +109,6 @@ def check_boards(verbose: bool = False, mpy_dir: str = None) -> None:
 
 
 # Backwards compatibility
-def check_images(verbose: bool = False, mpy_dir: str = None) -> None:
+def check_images(verbose: bool = False, mpy_dir: str | None = None) -> None:
     """Legacy function, redirects to check_boards"""
     check_boards(verbose, mpy_dir)

@@ -120,12 +120,7 @@ class Board:
             port=port,
         )
         board.variants.extend(
-            sorted(
-                [
-                    Variant(*v, board=board)
-                    for v in board_json.get("variants", {}).items()
-                ]
-            )
+            sorted([Variant(*v, board=board) for v in board_json.get("variants", {}).items()])
         )
         return board
 
@@ -143,11 +138,11 @@ class Board:
         return directory_
 
     @property
-    def deploy_filename(self) -> Path:
+    def deploy_filename(self) -> Path | None:
         """
-        Returns the filename of the deploy-markdown.
+        Returns the filename of the deploy-markdown, or None.
         """
-        return self.directory / self.deploy[0]
+        return self.directory / self.deploy[0] if self.deploy else None
 
     # TODO(mst): Update Variant to allow comparisons to strings. This method can
     # then be removed.
@@ -160,7 +155,8 @@ class Board:
             if v.name == variant:
                 return v
         print(
-            f"Variant '{variant}' not found for board '{self.name}': Valid variants are: {[v.name for v in self.variants]}"
+            f"Variant '{variant}' not found for board '{self.name}': "
+            f"Valid variants are: {[v.name for v in self.variants]}"
         )
 
         return None
@@ -207,7 +203,8 @@ class Database:
     def __post_init__(self) -> None:
         if not (self.mpy_root_directory / "ports").is_dir():
             raise ValueError(
-                f"'mpy_root_directory' should point to the top of a MicroPython repo: {self.mpy_root_directory}"
+                "'mpy_root_directory' should point to the top of a MicroPython "
+                f"repo: {self.mpy_root_directory}"
             )
 
         # Take care to avoid using Path.glob! Performance was 15x slower.
@@ -236,9 +233,7 @@ class Database:
             if self.port_filter and self.port_filter != special_port_name:
                 continue
             path = self.mpy_root_directory / "ports" / special_port_name
-            variant_names = [
-                var.name for var in path.glob("variants/*") if var.is_dir()
-            ]
+            variant_names = [var.name for var in path.glob("variants/*") if var.is_dir()]
             port = Port(
                 name=special_port_name,
                 directory=path,
@@ -256,9 +251,7 @@ class Database:
                 port=port,
             )
             port.boards = {special_port_name: board}
-            board.variants = [
-                Variant(name=v, text="", board=board) for v in variant_names
-            ]
+            board.variants = [Variant(name=v, text="", board=board) for v in variant_names]
             self.ports[special_port_name] = port
             self.boards[board.name] = board
 
@@ -273,9 +266,7 @@ class Database:
             )
 
     @staticmethod
-    def check_board_json(
-        board_json: dict, board_name: str, port_name: str
-    ) -> list[str]:
+    def check_board_json(board_json: dict, board_name: str, port_name: str) -> list[str]:
         """
         Checks a board.json file for missing or invalid keys.
         Returns a list of issues found.

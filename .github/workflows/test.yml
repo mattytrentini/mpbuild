@@ -1,0 +1,69 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Install dev dependencies
+        run: uv sync --group dev
+
+      - name: Run tests
+        run: uv run pytest --cov=mpbuild --cov-report=term-missing
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Install dev dependencies
+        run: uv sync --group dev
+
+      - name: Ruff lint
+        run: uv run ruff check
+
+      - name: Ruff format check
+        run: uv run ruff format --check
+
+  typecheck:
+    runs-on: ubuntu-latest
+    # ty is in active development; warn-only initially. Drop continue-on-error
+    # once we trust the output and want it gating merges.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Install dev dependencies
+        run: uv sync --group dev
+
+      - name: ty check
+        run: uv run ty check

@@ -1,10 +1,10 @@
 import os
-from pathlib import Path
 from functools import cache
+from pathlib import Path
 
 
 @cache
-def find_mpy_root(root: str| Path | None = None) -> tuple[Path, str]:
+def find_mpy_root(root: str | Path | None = None) -> tuple[Path, str]:
     if root is None:
         root = Path(os.environ.get("MICROPY_DIR", ".")).resolve()
     else:
