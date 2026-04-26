@@ -107,6 +107,11 @@ class MpBuildApp(App):
         self._populate_tree(tree)
         # Variant select starts hidden until a board with variants is picked.
         self.query_one("#variant-select", Select).display = False
+        # Border-title labels give each pane a cheap visual identity. The
+        # log's title gets swapped to the running board name during a build.
+        tree.border_title = "Boards"
+        self.query_one("#info-pane").border_title = "Selected"
+        self.query_one("#build-log", RichLog).border_title = "Output"
         self._refresh_action_state()
 
     def on_unmount(self) -> None:
@@ -199,6 +204,7 @@ class MpBuildApp(App):
         title = "Cleaning" if do_clean else "Building"
         variant = self._selected_variant()
         suffix = f" ({variant})" if variant else ""
+        log.border_title = f"{title} {board.name}{suffix}"
         log.write(f"[bold cyan][{title} {board.name}{suffix}][/]")
         self._stream_build(board, variant, do_clean)
 
@@ -231,6 +237,7 @@ class MpBuildApp(App):
         # from a terminated build mustn't trample a freshly started one.
         if self._running_proc is proc:
             self._running_proc = None
+            self.query_one("#build-log", RichLog).border_title = "Output"
             self._refresh_action_state()
 
     def _terminate_running(self) -> None:
