@@ -12,12 +12,33 @@ from collections.abc import Iterator
 
 from textual import work
 from textual.app import App, ComposeResult
+from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.widgets import Button, Footer, Header, RichLog, Select, Static, Tree
 
 from . import board_database
 from .board_database import Board
 from .build import docker_build_cmd
+
+
+class BoardTree(Tree):
+    """Tree with right/left arrow keys mapped to expand/collapse, on top of
+    the default keyboard navigation."""
+
+    BINDINGS = [
+        Binding("right", "expand_branch", "Expand", show=False),
+        Binding("left", "collapse_branch", "Collapse", show=False),
+    ]
+
+    def action_expand_branch(self) -> None:
+        node = self.cursor_node
+        if node is not None:
+            node.expand()
+
+    def action_collapse_branch(self) -> None:
+        node = self.cursor_node
+        if node is not None:
+            node.collapse()
 
 
 def _stream_command(cmd: str) -> Iterator[str]:
@@ -50,7 +71,7 @@ class MpBuildApp(App):
     def compose(self) -> ComposeResult:
         yield Header()
         with Horizontal():
-            yield Tree(":snake: MicroPython", id="board-tree")
+            yield BoardTree(":snake: MicroPython", id="board-tree")
             with Vertical(id="right-pane"):
                 with Vertical(id="info-pane"):
                     yield Static("Select a board…", id="info-text")
@@ -63,14 +84,14 @@ class MpBuildApp(App):
 
     def on_mount(self) -> None:
         self._selected_board: Board | None = None
-        tree = self.query_one("#board-tree", Tree)
+        tree = self.query_one("#board-tree", BoardTree)
         tree.root.expand()
         self._populate_tree(tree)
         self._set_actions_enabled(False)
         # Variant select starts hidden until a board with variants is picked.
         self.query_one("#variant-select", Select).display = False
 
-    def _populate_tree(self, tree: Tree) -> None:
+    def _populate_tree(self, tree: BoardTree) -> None:
         db = board_database()
         for port in sorted(db.ports.values()):
             port_node = tree.root.add(port.name, expand=False)

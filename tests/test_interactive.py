@@ -150,3 +150,33 @@ async def test_selecting_port_node_keeps_actions_disabled(populated_mpy_root):
 
         assert app.query_one("#build-btn", Button).disabled is True
         assert app.query_one("#clean-btn", Button).disabled is True
+
+
+async def test_right_arrow_expands_branch(populated_mpy_root):
+    """Right arrow on a collapsed port node expands it."""
+    app = MpBuildApp()
+    async with app.run_test() as pilot:
+        tree = app.query_one("#board-tree", Tree)
+        stm32_node = next(c for c in tree.root.children if str(c.label) == "stm32")
+        assert stm32_node.is_expanded is False
+        tree.move_cursor(stm32_node)
+        tree.focus()
+        await pilot.press("right")
+        await pilot.pause()
+        assert stm32_node.is_expanded is True
+
+
+async def test_left_arrow_collapses_branch(populated_mpy_root):
+    """Left arrow on an expanded port node collapses it."""
+    app = MpBuildApp()
+    async with app.run_test() as pilot:
+        tree = app.query_one("#board-tree", Tree)
+        stm32_node = next(c for c in tree.root.children if str(c.label) == "stm32")
+        stm32_node.expand()
+        await pilot.pause()
+        assert stm32_node.is_expanded is True
+        tree.move_cursor(stm32_node)
+        tree.focus()
+        await pilot.press("left")
+        await pilot.pause()
+        assert stm32_node.is_expanded is False
