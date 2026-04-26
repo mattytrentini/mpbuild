@@ -1,0 +1,45 @@
+Screen {
+    layout: vertical;
+}
+
+#board-tree {
+    width: 40;
+    dock: left;
+    border-right: solid $primary;
+}
+
+#right-pane {
+    width: 1fr;
+    height: 1fr;
+}
+
+#info-pane {
+    height: 14;
+    border: solid $primary;
+    padding: 1 2;
+}
+
+#info-text {
+    height: auto;
+    margin-bottom: 1;
+}
+
+#variant-select {
+    width: 40;
+    margin-bottom: 1;
+}
+
+#action-row {
+    height: 3;
+    align: left middle;
+}
+
+#action-row Button {
+    margin-right: 2;
+}
+
+#build-log {
+    height: 1fr;
+    border: solid $primary;
+    padding: 0 1;
+}

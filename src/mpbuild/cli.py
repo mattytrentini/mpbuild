@@ -109,6 +109,15 @@ def _version_callback(value: bool) -> None:
         raise typer.Exit()
 
 
+def _interactive_callback(value: bool) -> None:
+    if value:
+        # Lazy import: only pay the textual startup cost when --interactive is used.
+        from .interactive import start_app
+
+        start_app()
+        raise typer.Exit()
+
+
 @app.callback()
 def main(
     version: bool | None = typer.Option(
@@ -117,6 +126,14 @@ def main(
         "-v",
         help="Show the application's version and exit.",
         callback=_version_callback,
+        is_eager=True,
+    ),
+    interactive: bool | None = typer.Option(
+        None,
+        "--interactive",
+        "-i",
+        help="Launch the interactive TUI.",
+        callback=_interactive_callback,
         is_eager=True,
     ),
 ) -> None:
