@@ -36,7 +36,6 @@ Screen {
 #variant-select {
     width: 40;
     margin-bottom: 1;
-    border: tall $accent-darken-2;
 }
 
 #action-row {
