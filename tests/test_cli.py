@@ -195,6 +195,27 @@ class TestCheckBoards:
 
 
 # ===================================================================
+# --interactive
+# ===================================================================
+class TestInteractive:
+    def test_flag_invokes_start_app(self, runner, monkeypatch):
+        """`mpbuild --interactive` calls start_app then exits 0."""
+        called = []
+        monkeypatch.setattr("mpbuild.interactive.start_app", lambda: called.append(True))
+        result = runner.invoke(app, ["--interactive"])
+        assert result.exit_code == 0
+        assert called == [True]
+
+    def test_short_flag_invokes_start_app(self, runner, monkeypatch):
+        """`mpbuild -i` does the same as `--interactive`."""
+        called = []
+        monkeypatch.setattr("mpbuild.interactive.start_app", lambda: called.append(True))
+        result = runner.invoke(app, ["-i"])
+        assert result.exit_code == 0
+        assert called == [True]
+
+
+# ===================================================================
 # Import smoke — guards against the class of bug PR #96 fixed
 # (undeclared dep on typing_extensions broke `import mpbuild.cli`)
 # ===================================================================
