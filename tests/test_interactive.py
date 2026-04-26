@@ -6,7 +6,7 @@ Uses Textual's Pilot harness (App.run_test()) for headless interaction.
 from __future__ import annotations
 
 import pytest
-from textual.widgets import Button, Select, Static, Tree
+from textual.widgets import Button, RichLog, Select, Static, Tree
 
 from mpbuild import board_database
 from mpbuild.find_boards import find_mpy_root
@@ -76,12 +76,27 @@ async def test_tree_populates_with_ports_and_boards(populated_mpy_root):
 
 
 async def test_actions_disabled_until_board_selected(populated_mpy_root):
-    """Build, Clean, and the variant Select all start disabled."""
+    """Build, Clean, Stop, and the variant Select all start disabled."""
     app = MpBuildApp()
     async with app.run_test():
         assert app.query_one("#build-btn", Button).disabled is True
         assert app.query_one("#clean-btn", Button).disabled is True
+        assert app.query_one("#stop-btn", Button).disabled is True
         assert app.query_one("#variant-select", Select).disabled is True
+
+
+async def test_selecting_a_board_does_not_enable_stop(populated_mpy_root):
+    """Selecting a board enables Build/Clean but Stop stays disabled (no build)."""
+    app = MpBuildApp()
+    async with app.run_test() as pilot:
+        tree = app.query_one("#board-tree", Tree)
+        stm32_node = next(c for c in tree.root.children if str(c.label) == "stm32")
+        stm32_node.expand()
+        leaf = next(child for child in stm32_node.children if str(child.label) == "PYBV11")
+        tree.select_node(leaf)
+        await pilot.pause()
+        assert app.query_one("#build-btn", Button).disabled is False
+        assert app.query_one("#stop-btn", Button).disabled is True
 
 
 async def test_selecting_a_board_populates_info_and_enables_actions(populated_mpy_root):
@@ -197,3 +212,136 @@ async def test_left_arrow_on_leaf_collapses_parent(populated_mpy_root):
         await pilot.pause()
         assert stm32_node.is_expanded is False
         assert tree.cursor_node is stm32_node
+
+
+# ===================================================================
+# Build concurrency: Stop button, terminate-on-replace, log header
+# ===================================================================
+class FakeProc:
+    """Minimal subprocess.Popen stand-in for the streaming worker.
+
+    `lines` is the sequence of stdout lines the worker should observe before
+    the process "exits". `_terminate_event` blocks the line iterator so the
+    worker simulates a still-running build until the test calls `terminate`
+    (or the iterator is exhausted naturally).
+    """
+
+    def __init__(self, lines: list[str] | None = None) -> None:
+        import threading
+
+        self._lines = list(lines or [])
+        self._terminate_event = threading.Event()
+        self._terminated = False
+        self.returncode: int | None = None
+        self.stdout = self._iter_lines()
+
+    def _iter_lines(self):
+        for line in self._lines:
+            if self._terminate_event.is_set():
+                return
+            yield line
+        # No more input lines; simulate "still running" by blocking on the event
+        # so the worker doesn't race ahead and clear _running_proc.
+        self._terminate_event.wait(timeout=2)
+
+    def poll(self):
+        return self.returncode
+
+    def terminate(self) -> None:
+        self._terminated = True
+        self.returncode = -15
+        self._terminate_event.set()
+
+    def kill(self) -> None:
+        self.terminate()
+
+    def wait(self, timeout: float | None = None) -> int | None:
+        # The "running" iterator above blocks on _terminate_event; once that's
+        # set, the worker thread completes and we can return.
+        self._terminate_event.wait(timeout=timeout)
+        return self.returncode
+
+
+async def _select_pybv11(app, pilot):
+    tree = app.query_one("#board-tree", Tree)
+    stm32_node = next(c for c in tree.root.children if str(c.label) == "stm32")
+    stm32_node.expand()
+    leaf = next(child for child in stm32_node.children if str(child.label) == "PYBV11")
+    tree.select_node(leaf)
+    await pilot.pause()
+
+
+async def test_stop_button_enables_while_building(populated_mpy_root, monkeypatch):
+    """Starting a build flips Stop from disabled to enabled."""
+    fake = FakeProc(lines=["compiling foo.c", "compiling bar.c"])
+    monkeypatch.setattr("mpbuild.interactive._spawn", lambda _cmd: fake)
+    app = MpBuildApp()
+    async with app.run_test() as pilot:
+        await _select_pybv11(app, pilot)
+        assert app.query_one("#stop-btn", Button).disabled is True
+        await pilot.press("b")
+        # Give the @work(thread=True) worker a moment to run _spawn and
+        # post _set_running_proc back to the main thread.
+        await pilot.pause(0.1)
+        assert app.query_one("#stop-btn", Button).disabled is False
+        # Tidy up so the worker thread finishes before the app tears down.
+        fake.terminate()
+        await pilot.pause(0.1)
+
+
+async def test_stop_button_terminates_running_proc(populated_mpy_root, monkeypatch):
+    """Clicking Stop calls terminate() on the running Popen."""
+    fake = FakeProc(lines=[])
+    monkeypatch.setattr("mpbuild.interactive._spawn", lambda _cmd: fake)
+    app = MpBuildApp()
+    async with app.run_test() as pilot:
+        await _select_pybv11(app, pilot)
+        await pilot.press("b")
+        await pilot.pause(0.1)
+        await pilot.press("s")
+        await pilot.pause(0.1)
+        assert fake._terminated is True
+        # Stop disables again once the proc finishes.
+        assert app.query_one("#stop-btn", Button).disabled is True
+
+
+async def test_starting_build_terminates_running_one(populated_mpy_root, monkeypatch):
+    """Clicking Build while a build is running terminates the prior subprocess."""
+    procs: list[FakeProc] = []
+
+    def fake_spawn(_cmd):
+        p = FakeProc(lines=[])
+        procs.append(p)
+        return p
+
+    monkeypatch.setattr("mpbuild.interactive._spawn", fake_spawn)
+    app = MpBuildApp()
+    async with app.run_test() as pilot:
+        await _select_pybv11(app, pilot)
+        await pilot.press("b")
+        await pilot.pause(0.1)
+        assert len(procs) == 1
+        await pilot.press("b")  # while still running
+        await pilot.pause(0.1)
+        assert procs[0]._terminated is True
+        assert len(procs) == 2
+        # Tidy: stop the second so the worker exits cleanly.
+        procs[1].terminate()
+        await pilot.pause(0.1)
+
+
+async def test_log_header_names_running_build(populated_mpy_root, monkeypatch):
+    """Starting a build writes a [Building <board>] header to the log."""
+    fake = FakeProc(lines=[])
+    monkeypatch.setattr("mpbuild.interactive._spawn", lambda _cmd: fake)
+    app = MpBuildApp()
+    async with app.run_test() as pilot:
+        await _select_pybv11(app, pilot)
+        await pilot.press("b")
+        await pilot.pause(0.1)
+        log = app.query_one("#build-log", RichLog)
+        # RichLog stores its lines as Strip objects; render to text for assertion.
+        rendered = "\n".join(str(line.text) for line in log.lines)
+        assert "Building PYBV11" in rendered
+        fake.terminate()
+        await pilot.pause(0.1)
