@@ -180,3 +180,20 @@ async def test_left_arrow_collapses_branch(populated_mpy_root):
         await pilot.press("left")
         await pilot.pause()
         assert stm32_node.is_expanded is False
+
+
+async def test_left_arrow_on_leaf_collapses_parent(populated_mpy_root):
+    """Left arrow on a board leaf collapses the parent port and moves the cursor up."""
+    app = MpBuildApp()
+    async with app.run_test() as pilot:
+        tree = app.query_one("#board-tree", Tree)
+        stm32_node = next(c for c in tree.root.children if str(c.label) == "stm32")
+        stm32_node.expand()
+        await pilot.pause()
+        leaf = next(child for child in stm32_node.children if str(child.label) == "PYBV11")
+        tree.move_cursor(leaf)
+        tree.focus()
+        await pilot.press("left")
+        await pilot.pause()
+        assert stm32_node.is_expanded is False
+        assert tree.cursor_node is stm32_node

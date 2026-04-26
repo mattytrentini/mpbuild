@@ -36,9 +36,18 @@ class BoardTree(Tree):
             node.expand()
 
     def action_collapse_branch(self) -> None:
+        """Collapse the cursor's branch — or, if on a leaf or already-collapsed
+        node, hop to the parent and collapse that."""
         node = self.cursor_node
-        if node is not None:
+        if node is None:
+            return
+        if node.allow_expand and node.is_expanded:
             node.collapse()
+            return
+        parent = node.parent
+        if parent is not None and parent is not self.root:
+            self.move_cursor(parent)
+            parent.collapse()
 
 
 def _stream_command(cmd: str) -> Iterator[str]:
