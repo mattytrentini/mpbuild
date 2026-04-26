@@ -3,8 +3,6 @@ import multiprocessing
 import os
 import re
 import subprocess
-from pathlib import Path
-from typing import List, Optional
 import sys
 from pathlib import Path
 
@@ -195,7 +193,9 @@ def docker_build_cmd(
             )
 
     build_container = (
-        build_container_override if build_container_override else get_build_container(board=board, variant=variant)
+        build_container_override
+        if build_container_override
+        else get_build_container(board=board, variant=variant)
     )
 
     variant_param = "BOARD_VARIANT" if board.physical_board else "VARIANT"
@@ -255,10 +255,10 @@ def docker_build_cmd(
         f"{build_container} "
         f'bash -c "'
         f"git config --global --add safe.directory '*' 2> /dev/null;"
-        f'{ci_setup_cmd}'
-        f'{ci_environment_cmd}'
-        f'{make_mpy_cross_cmd}'
-        f'{update_submodules_cmd}'
+        f"{ci_setup_cmd}"
+        f"{ci_environment_cmd}"
+        f"{make_mpy_cross_cmd}"
+        f"{update_submodules_cmd}"
         f'make -j {nprocs} -C ports/{port.name} BOARD={board.name}{variant_cmd}{args}"'
     )
 
