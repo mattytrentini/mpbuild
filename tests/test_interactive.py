@@ -80,6 +80,7 @@ async def test_actions_disabled_until_board_selected(populated_mpy_root):
     app = MpBuildApp()
     async with app.run_test():
         assert app.query_one("#build-btn", Button).disabled is True
+        assert app.query_one("#rebuild-btn", Button).disabled is True
         assert app.query_one("#clean-btn", Button).disabled is True
         assert app.query_one("#stop-btn", Button).disabled is True
         assert app.query_one("#variant-select", Select).disabled is True
@@ -226,13 +227,18 @@ class FakeProc:
     (or the iterator is exhausted naturally).
     """
 
-    def __init__(self, lines: list[str] | None = None) -> None:
+    def __init__(self, lines: list[str] | None = None, complete_with: int | None = None) -> None:
         import threading
 
         self._lines = list(lines or [])
         self._terminate_event = threading.Event()
         self._terminated = False
         self.returncode: int | None = None
+        if complete_with is not None:
+            # "Already completed" mode: returncode is set, event is fired, so
+            # wait() returns immediately and the iterator exits after lines.
+            self.returncode = complete_with
+            self._terminate_event.set()
         self.stdout = self._iter_lines()
 
     def _iter_lines(self):
@@ -345,3 +351,36 @@ async def test_log_header_names_running_build(populated_mpy_root, monkeypatch):
         assert "Building PYBV11" in rendered
         fake.terminate()
         await pilot.pause(0.1)
+
+
+async def test_rebuild_runs_clean_then_build(populated_mpy_root, monkeypatch):
+    """Pressing `r` spawns two docker invocations in order: clean then build."""
+    cmds_seen: list[str] = []
+
+    def fake_spawn(cmd: str):
+        cmds_seen.append(cmd)
+        # complete_with=0 so the first phase exits cleanly and the worker
+        # proceeds to the second phase without us having to call .terminate().
+        return FakeProc(lines=[], complete_with=0)
+
+    monkeypatch.setattr("mpbuild.interactive._spawn", fake_spawn)
+    app = MpBuildApp()
+    async with app.run_test() as pilot:
+        await _select_pybv11(app, pilot)
+        await pilot.press("r")
+        # Both phases run sequentially in the worker thread; give it time.
+        await pilot.pause(0.3)
+
+        assert len(cmds_seen) == 2, f"expected 2 spawns, got {cmds_seen}"
+        # First phase is clean — docker_build_cmd skips mpy-cross + submodules.
+        assert "make -C mpy-cross" not in cmds_seen[0]
+        assert "BOARD=PYBV11" in cmds_seen[0]
+        # Second phase is build — full make path is present.
+        assert "make -C mpy-cross" in cmds_seen[1]
+        assert "BOARD=PYBV11" in cmds_seen[1]
+
+        # Log should contain both phase headers.
+        log = app.query_one("#build-log", RichLog)
+        rendered = "\n".join(str(line.text) for line in log.lines)
+        assert "Cleaning PYBV11" in rendered
+        assert "Building PYBV11" in rendered

@@ -104,6 +104,49 @@ class TestBuild:
 
 
 # ===================================================================
+# rebuild
+# ===================================================================
+class TestRebuild:
+    def test_dispatches_with_defaults(self, runner, monkeypatch):
+        """`mpbuild rebuild BOARD` calls rebuild_board with default-shaped args."""
+        called = {}
+
+        def fake(board, variant, extra_args, build_container):
+            called.update(
+                board=board,
+                variant=variant,
+                extra_args=extra_args,
+                build_container=build_container,
+            )
+
+        monkeypatch.setattr("mpbuild.cli.rebuild_board", fake)
+
+        result = runner.invoke(app, ["rebuild", "PYBV11"])
+
+        assert result.exit_code == 0
+        assert called == {
+            "board": "PYBV11",
+            "variant": None,
+            "extra_args": [],
+            "build_container": None,
+        }
+
+    def test_with_variant_and_container_override(self, runner, monkeypatch):
+        """Variant positional and --build-container option are forwarded."""
+        called = {}
+        monkeypatch.setattr(
+            "mpbuild.cli.rebuild_board",
+            lambda b, v, e, c: called.update(b=b, v=v, e=e, c=c),
+        )
+        result = runner.invoke(
+            app,
+            ["rebuild", "--build-container", "custom/image:tag", "PYBV11", "DP_THREAD"],
+        )
+        assert result.exit_code == 0
+        assert called == {"b": "PYBV11", "v": "DP_THREAD", "e": [], "c": "custom/image:tag"}
+
+
+# ===================================================================
 # clean
 # ===================================================================
 class TestClean:

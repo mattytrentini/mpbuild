@@ -3,7 +3,7 @@ from typing import Annotated
 import typer
 
 from . import OutputFormat, __app_name__, __version__
-from .build import build_board, clean_board
+from .build import build_board, clean_board, rebuild_board
 from .check_images import check_boards
 from .completions import list_boards, list_ports, list_variants_for_board
 from .list_boards import print_boards
@@ -55,6 +55,29 @@ def build(
     if variant == "":
         variant = None
     build_board(board, variant, extra_args or [], build_container)
+
+
+@app.command()
+def rebuild(
+    board: Annotated[str, typer.Argument(help="Board name", autocompletion=_complete_board)],
+    variant: Annotated[
+        str | None,
+        typer.Argument(help="Board variant", autocompletion=_complete_variant),
+    ] = None,
+    extra_args: Annotated[
+        list[str] | None, typer.Argument(help="additional arguments to pass to make")
+    ] = None,
+    build_container: Annotated[
+        str | None,
+        typer.Option(help="Override the default build container"),
+    ] = None,
+) -> None:
+    """
+    Clean and then build a MicroPython board.
+    """
+    if variant == "":
+        variant = None
+    rebuild_board(board, variant, extra_args or [], build_container)
 
 
 @app.command()
