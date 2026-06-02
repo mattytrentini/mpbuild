@@ -44,6 +44,12 @@ Remove build artifacts:
 mpbuild clean BOARD [VARIANT]
 ```
 
+Clean and then build a board (rebuild from scratch):
+
+```bash
+mpbuild rebuild BOARD [VARIANT]
+```
+
 List the available boards, optionally filter by the port name.
 
 Displays the board names (as a clickable link), variants and number of boards per port:
@@ -62,7 +68,7 @@ mpbuild --interactive   # or `mpbuild -i`
 
 ![Interactive TUI screenshot](docs/mpbuild_interactive_screenshot.png)
 
-The left pane shows every port and board found in the MicroPython tree. Selecting a board fills the right pane with its metadata, reveals a variant dropdown if the board has variants, and enables the Build / Clean buttons. The bottom-right log streams docker output as the build runs.
+The left pane shows every port and board found in the MicroPython tree. Selecting a board fills the right pane with its metadata, reveals a variant dropdown if the board has variants, and enables the Build / Rebuild / Clean buttons. The bottom-right log streams docker output as the build runs.
 
 Key bindings:
 
@@ -73,11 +79,12 @@ Key bindings:
 | `←` | Collapse the current branch (or, on a leaf, collapse the parent) |
 | `Enter` | Select |
 | `b` | Build the selected board |
+| `r` | Rebuild the selected board (clean then build) |
 | `c` | Clean the selected board |
 | `s` | Stop the running build |
 | `q` | Quit |
 
-Clicking **Build** while a build is already running terminates the running container before starting the new one. **Stop** is enabled only while a build is actually streaming.
+Clicking **Build**, **Rebuild**, or **Clean** while a build is already running terminates the running container before starting the new one. **Stop** is enabled only while a build is actually streaming.
 
 ## Advanced Usage
 

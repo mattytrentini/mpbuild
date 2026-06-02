@@ -204,7 +204,7 @@ wheels = [
 
 [[package]]
 name = "mpbuild"
-version = "0.9.1"
+version = "1.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "rich" },
