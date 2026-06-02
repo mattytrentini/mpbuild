@@ -330,3 +330,34 @@ def clean_board(
         mpy_dir=mpy_dir,
         extra_args=["clean"],
     )
+
+
+def rebuild_board(
+    board: str,
+    variant: str | None = None,
+    extra_args: list[str] | None = None,
+    build_container_override: str | None = None,
+    mpy_dir: str | Path | None = None,
+) -> None:
+    """Clean and then build a board.
+
+    Calls ``build_board`` twice (clean phase, then build phase) so the build
+    container override and any extra make args are preserved for both phases.
+    If the clean phase fails ``build_board`` raises ``SystemExit`` and the
+    build phase is skipped — which is the right behaviour because a failed
+    clean leaves the build state unknown.
+    """
+    build_board(
+        board=board,
+        variant=variant,
+        extra_args=["clean"],
+        build_container_override=build_container_override,
+        mpy_dir=mpy_dir,
+    )
+    build_board(
+        board=board,
+        variant=variant,
+        extra_args=extra_args,
+        build_container_override=build_container_override,
+        mpy_dir=mpy_dir,
+    )

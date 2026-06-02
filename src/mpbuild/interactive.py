@@ -78,6 +78,7 @@ class MpBuildApp(App):
     BINDINGS = [
         ("q", "quit", "Quit"),
         ("b", "build", "Build"),
+        ("r", "rebuild", "Rebuild"),
         ("c", "clean", "Clean"),
         ("s", "stop", "Stop"),
     ]
@@ -92,6 +93,7 @@ class MpBuildApp(App):
                     yield Select([], id="variant-select", prompt="Variant")
                     with Horizontal(id="action-row"):
                         yield Button("Build", id="build-btn", variant="primary")
+                        yield Button("Rebuild", id="rebuild-btn", variant="success")
                         yield Button("Clean", id="clean-btn", variant="warning")
                         yield Button("Stop", id="stop-btn", variant="error")
                 yield RichLog(id="build-log", wrap=False, highlight=True, markup=True)
@@ -126,15 +128,17 @@ class MpBuildApp(App):
                 port_node.add_leaf(board.name, data=board)
 
     def _refresh_action_state(self) -> None:
-        """Recompute Build/Clean/Stop/variant-select enable states.
+        """Recompute Build/Rebuild/Clean/Stop/variant-select enable states.
 
-        - Build/Clean/variant: enabled iff a board is selected (regardless of
-          whether a build is running — Option B lets you replace mid-flight).
+        - Build/Rebuild/Clean/variant: enabled iff a board is selected
+          (regardless of whether a build is running — Option B lets you
+          replace mid-flight).
         - Stop: enabled iff a build is currently running.
         """
         has_board = self._selected_board is not None
         is_running = self._running_proc is not None and self._running_proc.poll() is None
         self.query_one("#build-btn", Button).disabled = not has_board
+        self.query_one("#rebuild-btn", Button).disabled = not has_board
         self.query_one("#clean-btn", Button).disabled = not has_board
         self.query_one("#variant-select", Select).disabled = not has_board
         self.query_one("#stop-btn", Button).disabled = not is_running
@@ -178,55 +182,105 @@ class MpBuildApp(App):
         if not self._selected_board:
             return
         if event.button.id == "build-btn":
-            self._run_build(do_clean=False)
+            self._run_build(do_clean=False, do_build=True)
+        elif event.button.id == "rebuild-btn":
+            self._run_build(do_clean=True, do_build=True)
         elif event.button.id == "clean-btn":
-            self._run_build(do_clean=True)
+            self._run_build(do_clean=True, do_build=False)
 
     def action_build(self) -> None:
         if self._selected_board:
-            self._run_build(do_clean=False)
+            self._run_build(do_clean=False, do_build=True)
+
+    def action_rebuild(self) -> None:
+        if self._selected_board:
+            self._run_build(do_clean=True, do_build=True)
 
     def action_clean(self) -> None:
         if self._selected_board:
-            self._run_build(do_clean=True)
+            self._run_build(do_clean=True, do_build=False)
 
     def action_stop(self) -> None:
         self._terminate_running()
 
-    def _run_build(self, *, do_clean: bool) -> None:
+    def _run_build(self, *, do_clean: bool, do_build: bool) -> None:
         board = self._selected_board
         assert board is not None
-        # Implicit cancellation: clicking Build/Clean while a build runs
-        # terminates the current one before starting the replacement.
+        # Implicit cancellation: clicking Build/Rebuild/Clean while a build
+        # runs terminates the current one before starting the replacement.
         self._terminate_running()
-        log = self.query_one("#build-log", RichLog)
-        log.clear()
-        title = "Cleaning" if do_clean else "Building"
+        self.query_one("#build-log", RichLog).clear()
         variant = self._selected_variant()
-        suffix = f" ({variant})" if variant else ""
-        log.border_title = f"{title} {board.name}{suffix}"
-        log.write(f"[bold cyan][{title} {board.name}{suffix}][/]")
-        self._stream_build(board, variant, do_clean)
+        self._stream_build(board, variant, do_clean=do_clean, do_build=do_build)
 
     @work(thread=True, group="build")
-    def _stream_build(self, board: Board, variant: str | None, do_clean: bool) -> None:
+    def _stream_build(
+        self,
+        board: Board,
+        variant: str | None,
+        *,
+        do_clean: bool,
+        do_build: bool,
+    ) -> None:
+        """Stream up to two docker phases sequentially.
+
+        - Clean only:   do_clean=True, do_build=False
+        - Build only:   do_clean=False, do_build=True
+        - Rebuild:      do_clean=True, do_build=True (clean then build;
+                        the build phase is skipped if clean fails)
+        """
+        suffix = f" ({variant})" if variant else ""
         try:
-            cmd = docker_build_cmd(
-                board=board,
-                variant=variant,
-                do_clean=do_clean,
-                docker_interactive=False,
+            clean_cmd = (
+                docker_build_cmd(
+                    board=board, variant=variant, do_clean=True, docker_interactive=False
+                )
+                if do_clean
+                else None
+            )
+            build_cmd = (
+                docker_build_cmd(
+                    board=board, variant=variant, do_clean=False, docker_interactive=False
+                )
+                if do_build
+                else None
             )
         except Exception as e:  # ValueError from unknown variant, etc.
             self.call_from_thread(self._log_line, f"[red]error:[/] {e}")
             return
+
+        last_proc: subprocess.Popen[str] | None = None
+        if clean_cmd is not None:
+            last_proc = self._run_phase(f"Cleaning {board.name}{suffix}", clean_cmd)
+            if last_proc.returncode != 0 and build_cmd is not None:
+                self.call_from_thread(
+                    self._log_line,
+                    "[red]Build skipped because clean failed.[/]",
+                )
+                self.call_from_thread(self._on_build_finished, last_proc)
+                return
+        if build_cmd is not None:
+            last_proc = self._run_phase(f"Building {board.name}{suffix}", build_cmd)
+        if last_proc is not None:
+            self.call_from_thread(self._on_build_finished, last_proc)
+
+    def _run_phase(self, label: str, cmd: str) -> subprocess.Popen[str]:
+        """Run one docker invocation, stream its output, return the finished Popen.
+
+        Called from inside the @work thread; uses call_from_thread for any UI
+        state changes (log writes, border title, running-proc handle).
+        """
+        self.call_from_thread(self._set_log_phase, label)
         proc = _spawn(cmd)
         self.call_from_thread(self._set_running_proc, proc)
-        try:
-            for line in _stream_proc(proc):
-                self.call_from_thread(self._log_line, line)
-        finally:
-            self.call_from_thread(self._on_build_finished, proc)
+        for line in _stream_proc(proc):
+            self.call_from_thread(self._log_line, line)
+        return proc
+
+    def _set_log_phase(self, label: str) -> None:
+        log = self.query_one("#build-log", RichLog)
+        log.border_title = label
+        log.write(f"[bold cyan][{label}][/]")
 
     def _set_running_proc(self, proc: subprocess.Popen[str]) -> None:
         self._running_proc = proc
