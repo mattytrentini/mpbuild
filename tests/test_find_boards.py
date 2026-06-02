@@ -22,6 +22,19 @@ class TestFindMpyRoot:
         assert result == mpy_root
         assert port == ""
 
+    def test_resolves_tilde_in_explicit_root_path(self, tmp_path, monkeypatch):
+        """An explicit root using '~' is expanded and resolved before lookup."""
+        home = tmp_path / "home"
+        root = home / "micropython"
+        (root / "ports").mkdir(parents=True)
+        (root / "mpy-cross").mkdir()
+        monkeypatch.setenv("HOME", str(home))
+
+        result, port = find_mpy_root("~/micropython")
+
+        assert result == root.resolve()
+        assert port == ""
+
     def test_walks_up_to_find_root(self, mpy_root):
         """Walks parent dirs until ports/ + mpy-cross/ are found."""
         deep = mpy_root / "ports" / "stm32" / "boards" / "PYBV11"
