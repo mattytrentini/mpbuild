@@ -7,7 +7,6 @@ Cutting a release is two steps: merge a version-bump PR, then push a tag. Everyt
 ```bash
 # 1. Open + merge a "Release vX.Y.Z" PR that bumps:
 #    - pyproject.toml (project.version)
-#    - src/mpbuild/__init__.py (__version__)
 #    - uv.lock (uv lock)
 #
 # 2. Tag the merged commit on main and push:
@@ -41,11 +40,12 @@ The CLI is the stable surface that SemVer applies to. The Python module API (`im
 
 ### 2. Open a release PR
 
-Bump these three files in a single PR titled "Release vX.Y.Z":
+Bump these two files in a single PR titled "Release vX.Y.Z":
 
 - `pyproject.toml` — `project.version = "X.Y.Z"`
-- `src/mpbuild/__init__.py` — `__version__ = "X.Y.Z"` (this is what `mpbuild --version` actually prints)
 - `uv.lock` — run `uv lock` after the bump to keep it in sync
+
+`pyproject.toml` is the single source of truth for the version string; `src/mpbuild/__init__.py` reads it at runtime via `importlib.metadata.version("mpbuild")`, so `mpbuild --version` stays in sync automatically.
 
 If anything user-visible changed since the last release (new commands, key bindings, behaviour, etc.), update `README.md` in the same PR.
 
