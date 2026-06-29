@@ -40,6 +40,7 @@ class TestSimplePorts:
             ("samd", ARM_BUILD_CONTAINER),
             ("psoc6", "ifxmakers/mpy-mtb-ci"),
             ("esp8266", "larsks/esp-open-sdk"),
+            ("baochip", "micropython/build-micropython-baochip"),
         ],
     )
     def test_physical_port_maps_to_container(self, mpy_root, make_board, port_name, expected):
