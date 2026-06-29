@@ -82,6 +82,7 @@ BUILD_CONTAINERS = {
     "unix": "gcc:12-bookworm",  # Special, doesn't have boards
     "webassembly": ARM_BUILD_CONTAINER,  # installs emsdk on first build
     "windows": WIN_BUILD_CONTAINER,  # cross compile linux to windows
+    "baochip": "micropython/build-micropython-baochip",  # xPack RISC-V + pure25519
 }
 
 
