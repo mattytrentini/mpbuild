@@ -39,6 +39,7 @@ class TestSimplePorts:
             ("renesas-ra", ARM_BUILD_CONTAINER),
             ("samd", ARM_BUILD_CONTAINER),
             ("psoc6", "ifxmakers/mpy-mtb-ci"),
+            ("psoc-edge", "micropython/build-micropython-psoc-edge"),
             ("esp8266", "larsks/esp-open-sdk"),
             ("baochip", "micropython/build-micropython-baochip"),
         ],
