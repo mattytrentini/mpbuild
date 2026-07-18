@@ -76,6 +76,7 @@ BUILD_CONTAINERS = {
     "mimxrt": ARM_BUILD_CONTAINER,
     "renesas-ra": ARM_BUILD_CONTAINER,
     "samd": ARM_BUILD_CONTAINER,
+    "alif": ARM_BUILD_CONTAINER,
     "psoc6": "ifxmakers/mpy-mtb-ci",
     "psoc-edge": "micropython/build-micropython-psoc-edge",  # arm-none-eabi + edgeprotecttools
     "esp32": f"{ESP_IDF_CONTAINER}:{ESP_IDF_FALLBACK_VERSION}",
