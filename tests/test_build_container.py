@@ -41,7 +41,7 @@ class TestSimplePorts:
             ("alif", ARM_BUILD_CONTAINER),
             ("psoc6", "ifxmakers/mpy-mtb-ci"),
             ("psoc-edge", "micropython/build-micropython-psoc-edge"),
-            ("esp8266", "larsks/esp-open-sdk"),
+            ("esp8266", "micropython/build-micropython-esp8266"),
             ("baochip", "micropython/build-micropython-baochip"),
         ],
     )
