@@ -79,7 +79,7 @@ BUILD_CONTAINERS = {
     "psoc6": "ifxmakers/mpy-mtb-ci",
     "psoc-edge": "micropython/build-micropython-psoc-edge",  # arm-none-eabi + edgeprotecttools
     "esp32": f"{ESP_IDF_CONTAINER}:{ESP_IDF_FALLBACK_VERSION}",
-    "esp8266": "larsks/esp-open-sdk",
+    "esp8266": "micropython/build-micropython-esp8266",
     "unix": "gcc:12-bookworm",  # Special, doesn't have boards
     "webassembly": ARM_BUILD_CONTAINER,  # installs emsdk on first build
     "windows": WIN_BUILD_CONTAINER,  # cross compile linux to windows
