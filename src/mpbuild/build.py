@@ -13,6 +13,13 @@ from rich.panel import Panel
 from . import board_database, find_mpy_root
 from .board_database import Board
 
+# On 2026-11-12 this commit introduced a gcc plugin:
+# https://github.com/micropython/micropython/commit/8cb6e91ccae8a9dc01b1e154459f633d4c190b56
+# This plugin makes some docker container (larsks/esp-open-sdk, micropython/build-micropython-arm)
+# to fail as the plugin itself has to be compiled.
+# We disable this plugin for all our containers using "-e MICROPY_USE_COMPILER_PLUGIN=none"
+_DISABLE_COMPILER_PLUGIN = "MICROPY_USE_COMPILER_PLUGIN=none"
+
 
 def get_main_git_directory(mpy_dir: Path) -> Path | None:
     """
@@ -316,6 +323,7 @@ def docker_build_cmd(
         f"{git_volume_mount}"
         f"--user {uid}:{gid} "
         f"-e HOME=/tmp "
+        f"-e {_DISABLE_COMPILER_PLUGIN} "
         f"{build_container} "
         f'bash -c "'
         f"git config --global --add safe.directory '*' 2> /dev/null;"
