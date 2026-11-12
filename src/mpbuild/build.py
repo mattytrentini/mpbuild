@@ -231,6 +231,7 @@ def docker_build_cmd(
     do_clean: bool = False,
     build_container_override: str | None = None,
     docker_interactive: bool = True,
+    add_device_flags: bool = True,
 ) -> str:
     """
     Returns the docker-command which will build the firmware.
@@ -290,17 +291,18 @@ def docker_build_cmd(
     if main_git_dir:
         git_volume_mount = f"-v {main_git_dir}:{main_git_dir} "
 
-    # Dynamically find all ttyACM and ttyUSB devices
-    tty_devices = []
-    for pattern in ["/dev/ttyACM*", "/dev/ttyUSB*"]:
-        tty_devices.extend(glob.glob(pattern))
-
     # Build device flags
     device_flags = ""
-    if os.path.exists("/dev/bus/usb/") and os.listdir("/dev/bus/usb/"):
-        device_flags += "--device /dev/bus/usb/ "  # USB access
-    for device in tty_devices:
-        device_flags += f"--device {device} "
+    if add_device_flags:
+        # Dynamically find all ttyACM and ttyUSB devices
+        tty_devices = []
+        for pattern in ["/dev/ttyACM*", "/dev/ttyUSB*"]:
+            tty_devices.extend(glob.glob(pattern))
+
+        if os.path.exists("/dev/bus/usb/") and os.listdir("/dev/bus/usb/"):
+            device_flags += "--device /dev/bus/usb/ "  # USB access
+        for device in tty_devices:
+            device_flags += f"--device {device} "
 
     # Build the docker run invocation. Each option, in order:
     #   {device_flags}             USB and serial devices for deploy
